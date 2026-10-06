@@ -13,10 +13,9 @@ enum Role {
   COLLECTOR
 }
 
-enum Gate {
-  G2
-  GS
-  G9
+enum UserStatus {
+  ACTIVE
+  DISABLED
 }
 
 enum PassStatus {
@@ -30,99 +29,207 @@ enum PaymentMode {
   UPI
 }
 
+enum PaymentType {
+  NEW
+  RENEWAL
+}
+
+enum DocumentType {
+  AADHAAR
+  PASSPORT
+  TICKET
+}
+
 model User {
   id           String      @id @default(uuid())
-  username     String      @unique
-  fullName     String
-  passwordHash String
+  name         String
+  email        String      @unique
+  phone        String
   role         Role        @default(COLLECTOR)
-  isActive     Boolean     @default(true)
+  status       UserStatus  @default(ACTIVE)
+  passwordHash String
+  totpSecret   String?     // Encrypted at rest
+  failedLogins Int         @default(0)
+  lockedUntil  DateTime?
+  lastLoginAt  DateTime?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
-  
-  auditLogs    AuditLog[]
-  payments     Payment[]
+
+  createdWalkers   Walker[]        @relation("WalkerCreator")
+  deletedWalkers   Walker[]        @relation("WalkerDeleter")
+  collectedPayments Payment[]      @relation("PaymentCollector")
+  uploadedDocuments Document[]     @relation("DocumentUploader")
+  auditLogs        AuditLog[]
+  refreshTokens    RefreshToken[]
 
   @@map("users")
 }
 
-model Walker {
-  id                  String       @id @default(uuid())
-  passNumber          String       @unique
-  fullName            String
-  phone               String
-  address             String
-  aadhaarNumberMasked String?
-  aadhaarPhotoUrl     String
-  passportPhotoUrl    String
-  passStatus          PassStatus   @default(ACTIVE)
-  currentExpiryDate   DateTime
-  isDeleted           Boolean      @default(false)
-  deletedAt           DateTime?
-  deletedReason       String?
-  createdAt           DateTime     @default(now())
-  updatedAt           DateTime     @updatedAt
+model Gate {
+  id        String    @id @default(uuid())
+  code      String    @unique // e.g. 'G2', 'GS', 'G9'
+  name      String
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  passes              PassHistory[]
-  payments            Payment[]
-  auditLogs           AuditLog[]
+  walkers   Walker[]
+  payments  Payment[]
+
+  @@map("gates")
+}
+
+model Walker {
+  id            String       @id @default(uuid())
+  passNo        String       @unique
+  name          String
+  phone         String
+  gateId        String
+  aadhaarLast4  String?
+  notes         String?
+  consentAt     DateTime?
+  deletedAt     DateTime?
+  deletedById   String?
+  createdById   String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  gate          Gate         @relation(fields: [gateId], references: [id])
+  createdBy     User         @relation("WalkerCreator", fields: [createdById], references: [id])
+  deletedBy     User?        @relation("WalkerDeleter", fields: [deletedById], references: [id])
+
+  passes        Pass[]
+  payments      Payment[]
+  documents     Document[]
+  notifications NotificationLog[]
 
   @@index([phone])
-  @@index([passNumber])
-  @@index([currentExpiryDate])
+  @@index([passNo])
+  @@index([deletedAt])
   @@map("walkers")
 }
 
-model PassHistory {
-  id          String    @id @default(uuid())
+model Pass {
+  id          String      @id @default(uuid())
   walkerId    String
   startDate   DateTime
   expiryDate  DateTime
-  isRenewal   Boolean   @default(false)
-  ticketPhotoUrl String?
-  createdAt   DateTime  @default(now())
+  status      PassStatus  @default(ACTIVE)
+  createdAt   DateTime    @default(now())
 
-  walker      Walker    @relation(fields: [walkerId], references: [id])
+  walker      Walker      @relation(fields: [walkerId], references: [id])
+  payments    Payment[]
 
-  @@index([walkerId])
-  @@map("pass_histories")
+  @@index([expiryDate])
+  @@index([walkerId, status])
+  @@map("passes")
 }
 
 model Payment {
-  id           String       @id @default(uuid())
-  walkerId     String
-  collectorId  String
-  amountPaise  Int          // e.g. 20000 for Rs 200
-  gate         Gate
-  paymentMode  PaymentMode
-  upiRefNumber String?
-  receiptNumber String      @unique
-  createdAt    DateTime     @default(now())
+  id            String       @id @default(uuid())
+  walkerId      String
+  passId        String
+  gateId        String
+  collectedById String
+  amountPaise   Int          // Rs 200 = 20000 paise
+  mode          PaymentMode
+  type          PaymentType  // NEW or RENEWAL
+  receiptNo     String       @unique // Sequential per year, e.g. RCP-2026-000001
+  ticketDocId   String?
+  createdAt     DateTime     @default(now())
 
-  walker       Walker       @relation(fields: [walkerId], references: [id])
-  collector    User         @relation(fields: [collectorId], references: [id])
+  walker        Walker       @relation(fields: [walkerId], references: [id])
+  pass          Pass         @relation(fields: [passId], references: [id])
+  gate          Gate         @relation(fields: [gateId], references: [id])
+  collectedBy   User         @relation("PaymentCollector", fields: [collectedById], references: [id])
+  ticketDoc     Document?    @relation("PaymentTicketDocument", fields: [ticketDocId], references: [id])
 
-  @@index([gate, createdAt])
+  documents     Document[]   @relation("PaymentDocuments")
+
+  @@index([createdAt])
+  @@index([gateId])
   @@index([walkerId])
   @@map("payments")
 }
 
+model Document {
+  id           String       @id @default(uuid())
+  walkerId     String
+  paymentId    String?
+  type         DocumentType // AADHAAR, PASSPORT, TICKET
+  storageKey   String       // S3 key
+  mimeType     String
+  sizeBytes    Int
+  checksum     String?      // SHA-256 hash of document
+  uploadedById String
+  createdAt    DateTime     @default(now())
+
+  walker       Walker       @relation(fields: [walkerId], references: [id])
+  payment      Payment?     @relation("PaymentDocuments", fields: [paymentId], references: [id])
+  uploadedBy   User         @relation("DocumentUploader", fields: [uploadedById], references: [id])
+  ticketPayments Payment[]  @relation("PaymentTicketDocument")
+
+  @@index([walkerId])
+  @@index([storageKey])
+  @@map("documents")
+}
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
 model AuditLog {
-  id         String   @id @default(uuid())
-  action     String   // e.g., 'REGISTER_WALKER', 'RENEW_PASS', 'OVERRIDE_PHONE', 'SOFT_DELETE'
-  actorId    String
-  entityType String   // 'Walker', 'Payment', 'User'
-  entityId   String
-  walkerId   String?
-  details    Json
-  ipAddress  String?
-  createdAt  DateTime @default(now())
+  id        String   @id @default(uuid())
+  actorId   String
+  action    String   // REGISTER_WALKER, RENEW_PASS, OVERRIDE_PHONE, SOFT_DELETE, RESTORE_WALKER, etc.
+  entity    String   // Walker, Pass, Payment, User
+  entityId  String
+  before    Json?
+  after     Json?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
 
-  actor      User     @relation(fields: [actorId], references: [id])
-  walker     Walker?  @relation(fields: [walkerId], references: [id])
+  actor     User     @relation(fields: [actorId], references: [id])
 
-  @@index([actorId])
-  @@index([action])
   @@index([createdAt])
+  @@index([actorId])
+  @@index([entity, entityId])
   @@map("audit_logs")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  revoked   Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model NotificationLog {
+  id        String   @id @default(uuid())
+  walkerId  String
+  type      String   // EXPIRY_WARNING, RENEWAL_CONFIRMATION, WELCOME
+  channel   String   // SMS, WHATSAPP
+  recipient String   // Phone number
+  status    String   // SENT, FAILED, DELIVERED
+  payload   Json?
+  sentAt    DateTime?
+  createdAt DateTime @default(now())
+
+  walker    Walker   @relation(fields: [walkerId], references: [id])
+
+  @@index([walkerId])
+  @@index([createdAt])
+  @@map("notification_logs")
 }

@@ -42,3 +42,4 @@ export function validateEnv(customEnv?: Record<string, unknown>): Env {
 }
 
 export const getEnv = () => validateEnv();
+export const env = validateEnv();
