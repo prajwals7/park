@@ -1,0 +1,37 @@
+{
+  "name": "walker-pass-desk",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Walker Pass Desk - Production-grade ticketing and management system for walking parks",
+  "scripts": {
+    "dev": "pnpm --filter \"@wpd/*\" --parallel dev",
+    "dev:api": "pnpm --filter @wpd/api dev",
+    "dev:web": "pnpm --filter @wpd/web dev",
+    "build": "pnpm --filter \"@wpd/*\" build",
+    "lint": "pnpm -r lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "test": "pnpm -r test",
+    "db:migrate": "pnpm --filter @wpd/api db:migrate",
+    "db:generate": "pnpm --filter @wpd/api db:generate",
+    "db:seed": "pnpm --filter @wpd/api db:seed",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.10.1",
+    "@typescript-eslint/eslint-plugin": "^8.18.0",
+    "@typescript-eslint/parser": "^8.18.0",
+    "eslint": "^9.16.0",
+    "eslint-config-prettier": "^9.1.0",
+    "globals": "^17.13.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.11",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "packageManager": "pnpm@12.9.1"
+}

@@ -1,0 +1,128 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  COLLECTOR
+}
+
+enum Gate {
+  G2
+  GS
+  G9
+}
+
+enum PassStatus {
+  ACTIVE
+  EXPIRING
+  EXPIRED
+}
+
+enum PaymentMode {
+  CASH
+  UPI
+}
+
+model User {
+  id           String      @id @default(uuid())
+  username     String      @unique
+  fullName     String
+  passwordHash String
+  role         Role        @default(COLLECTOR)
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  
+  auditLogs    AuditLog[]
+  payments     Payment[]
+
+  @@map("users")
+}
+
+model Walker {
+  id                  String       @id @default(uuid())
+  passNumber          String       @unique
+  fullName            String
+  phone               String
+  address             String
+  aadhaarNumberMasked String?
+  aadhaarPhotoUrl     String
+  passportPhotoUrl    String
+  passStatus          PassStatus   @default(ACTIVE)
+  currentExpiryDate   DateTime
+  isDeleted           Boolean      @default(false)
+  deletedAt           DateTime?
+  deletedReason       String?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  passes              PassHistory[]
+  payments            Payment[]
+  auditLogs           AuditLog[]
+
+  @@index([phone])
+  @@index([passNumber])
+  @@index([currentExpiryDate])
+  @@map("walkers")
+}
+
+model PassHistory {
+  id          String    @id @default(uuid())
+  walkerId    String
+  startDate   DateTime
+  expiryDate  DateTime
+  isRenewal   Boolean   @default(false)
+  ticketPhotoUrl String?
+  createdAt   DateTime  @default(now())
+
+  walker      Walker    @relation(fields: [walkerId], references: [id])
+
+  @@index([walkerId])
+  @@map("pass_histories")
+}
+
+model Payment {
+  id           String       @id @default(uuid())
+  walkerId     String
+  collectorId  String
+  amountPaise  Int          // e.g. 20000 for Rs 200
+  gate         Gate
+  paymentMode  PaymentMode
+  upiRefNumber String?
+  receiptNumber String      @unique
+  createdAt    DateTime     @default(now())
+
+  walker       Walker       @relation(fields: [walkerId], references: [id])
+  collector    User         @relation(fields: [collectorId], references: [id])
+
+  @@index([gate, createdAt])
+  @@index([walkerId])
+  @@map("payments")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String   // e.g., 'REGISTER_WALKER', 'RENEW_PASS', 'OVERRIDE_PHONE', 'SOFT_DELETE'
+  actorId    String
+  entityType String   // 'Walker', 'Payment', 'User'
+  entityId   String
+  walkerId   String?
+  details    Json
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  actor      User     @relation(fields: [actorId], references: [id])
+  walker     Walker?  @relation(fields: [walkerId], references: [id])
+
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
