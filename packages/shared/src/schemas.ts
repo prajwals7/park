@@ -1,18 +1,7 @@
 import { z } from 'zod';
 import { GATES, PAYMENT_MODES } from './constants.js';
 
-// Phone number: exactly 10 digits
-export const phoneSchema = z
-  .string()
-  .trim()
-  .regex(/^[6-9]\d{9}$/, 'Must be a valid 10-digit Indian mobile number');
-
-// Login schema
-export const loginSchema = z.object({
-  username: z.string().trim().min(3).max(50),
-  password: z.string().min(6).max(100),
-});
-export type LoginInput = z.infer<typeof loginSchema>;
+import { phoneSchema } from './auth-schemas.js';
 
 // Walker registration schema
 export const registerWalkerSchema = z

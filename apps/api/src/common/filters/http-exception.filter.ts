@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Response, Request } from 'express';
 import { ZodError } from 'zod';
+import { Prisma } from '@prisma/client';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -17,6 +18,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
+    const requestId = (request.headers['x-request-id'] as string) || 'unknown';
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let code = 'INTERNAL_SERVER_ERROR';
@@ -43,15 +45,30 @@ export class AllExceptionsFilter implements ExceptionFilter {
         path: e.path.join('.'),
         message: e.message,
       }));
+    } else if (exception instanceof Prisma.PrismaClientKnownRequestError) {
+      if (exception.code === 'P2002') {
+        status = HttpStatus.CONFLICT;
+        code = 'DUPLICATE_RESOURCE';
+        const target = (exception.meta?.['target'] as string[]) || [];
+        message = `A resource with the specified unique field (${target.join(', ')}) already exists.`;
+      } else if (exception.code === 'P2025') {
+        status = HttpStatus.NOT_FOUND;
+        code = 'RESOURCE_NOT_FOUND';
+        message = 'Requested record was not found.';
+      } else {
+        status = HttpStatus.BAD_REQUEST;
+        code = 'DATABASE_CONSTRAINT_VIOLATION';
+        message = 'Database operation failed constraints.';
+      }
+      this.logger.warn(`[${requestId}] Prisma Error: ${exception.code} - ${exception.message}`);
     } else if (exception instanceof Error) {
-      // Never leak SQL queries or raw stack traces in production / API responses
       this.logger.error(
-        `Unhanded Exception: ${exception.message}`,
+        `[${requestId}] Unhandled Server Error: ${exception.message}`,
         exception.stack,
         `${request.method} ${request.url}`,
       );
       code = 'INTERNAL_ERROR';
-      message = 'A processing error occurred';
+      message = 'An unexpected server error occurred. Please retry later.';
       details = undefined;
     }
 
