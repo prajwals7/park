@@ -10,12 +10,14 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.9.1",
     "@wpd/shared": "workspace:*",
     "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",
     "next": "^15.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-hook-form": "^7.89.0",
     "tailwind-merge": "^2.5.5",
     "zod": "^3.24.1"
   },
