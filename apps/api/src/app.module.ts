@@ -6,6 +6,7 @@ import { AuditModule } from './modules/audit/audit.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { WalkersModule } from './modules/walkers/walkers.module.js';
 import { StorageModule } from './modules/storage/storage.module.js';
+import { PaymentsModule } from './modules/payments/payments.module.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { RolesGuard } from './common/guards/roles.guard.js';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware.js';
@@ -24,6 +25,7 @@ import { env } from './common/env.js';
     AuthModule,
     WalkersModule,
     StorageModule,
+    PaymentsModule,
   ],
   providers: [
     // 1. Throttler Guard (Rate limiting)

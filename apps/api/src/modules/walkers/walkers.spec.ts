@@ -22,6 +22,7 @@ interface MockWalkerPrisma {
   payment: {
     count: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
+    findUnique: ReturnType<typeof vi.fn>;
   };
   document: {
     create: ReturnType<typeof vi.fn>;
@@ -57,6 +58,7 @@ describe('Walkers & Pass Management Suite', () => {
       payment: {
         count: vi.fn(),
         create: vi.fn(),
+        findUnique: vi.fn().mockResolvedValue(null),
       },
       document: {
         create: vi.fn(),
@@ -133,6 +135,7 @@ describe('Walkers & Pass Management Suite', () => {
             aadhaarStorageKey: 'docs/aadhaar.jpg',
             passportStorageKey: 'docs/photo.jpg',
             paymentMode: 'CASH',
+            receiptNo: 'RC-000101',
             allowDuplicatePhoneOverride: false,
           },
           'collector-1',
@@ -162,6 +165,7 @@ describe('Walkers & Pass Management Suite', () => {
             aadhaarStorageKey: 'docs/aadhaar.jpg',
             passportStorageKey: 'docs/photo.jpg',
             paymentMode: 'CASH',
+            receiptNo: 'RC-000102',
             allowDuplicatePhoneOverride: true,
             overrideReason: 'Family member sharing mobile phone',
           },
@@ -189,7 +193,7 @@ describe('Walkers & Pass Management Suite', () => {
       });
       mockPrisma.payment.create.mockResolvedValue({
         id: 'pay-new',
-        receiptNo: 'RCP-2026-000011',
+        receiptNo: 'RC-000103',
         amountPaise: 20000,
         mode: 'UPI',
         createdAt: new Date(),
@@ -206,6 +210,7 @@ describe('Walkers & Pass Management Suite', () => {
         aadhaarStorageKey: 'docs/aadhaar.jpg',
         passportStorageKey: 'docs/photo.jpg',
         paymentMode: 'UPI' as const,
+        receiptNo: 'RC-000103',
         allowDuplicatePhoneOverride: false,
       };
 
@@ -247,7 +252,7 @@ describe('Walkers & Pass Management Suite', () => {
       mockPrisma.payment.count.mockResolvedValue(5);
       mockPrisma.payment.create.mockResolvedValue({
         id: 'pay-renewed',
-        receiptNo: 'RCP-2026-000006',
+        receiptNo: 'RC-000104',
         amountPaise: 20000,
         mode: 'CASH',
         createdAt: new Date(),
@@ -258,6 +263,7 @@ describe('Walkers & Pass Management Suite', () => {
         {
           gateId: '11111111-1111-1111-1111-111111111111',
           paymentMode: 'CASH',
+          receiptNo: 'RC-000104',
           ticketStorageKey: 'docs/ticket_scan.jpg',
         },
         'collector-1',
@@ -265,7 +271,7 @@ describe('Walkers & Pass Management Suite', () => {
 
       expect(mockPrisma.$queryRaw).toHaveBeenCalled();
       expect(res.walker.id).toBe(walkerId);
-      expect(res.payment.receiptNo).toBe('RCP-2026-000006');
+      expect(res.payment.receiptNo).toBe('RC-000104');
     });
 
     it('rejects renewal if walker is soft-deleted', async () => {
@@ -280,6 +286,7 @@ describe('Walkers & Pass Management Suite', () => {
           {
             gateId: '11111111-1111-1111-1111-111111111111',
             paymentMode: 'CASH',
+            receiptNo: 'RC-000105',
             ticketStorageKey: 'docs/ticket_scan.jpg',
           },
           'collector-1',

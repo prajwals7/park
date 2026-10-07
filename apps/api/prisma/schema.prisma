@@ -58,6 +58,7 @@ model User {
   createdWalkers   Walker[]        @relation("WalkerCreator")
   deletedWalkers   Walker[]        @relation("WalkerDeleter")
   collectedPayments Payment[]      @relation("PaymentCollector")
+  correctedPayments Payment[]      @relation("PaymentCorrector")
   uploadedDocuments Document[]     @relation("DocumentUploader")
   auditLogs        AuditLog[]
   refreshTokens    RefreshToken[]
@@ -137,14 +138,19 @@ model Payment {
   amountPaise   Int          // Rs 200 = 20000 paise
   mode          PaymentMode
   type          PaymentType  // NEW or RENEWAL
-  receiptNo     String       @unique // Sequential per year, e.g. RCP-2026-000001
+  receiptNo     String       @unique // Collector-entered physical receipt number
   ticketDocId   String?
+  isCorrected   Boolean      @default(false)
+  correctionReason String?
+  correctedAt   DateTime?
+  correctedById String?
   createdAt     DateTime     @default(now())
 
   walker        Walker       @relation(fields: [walkerId], references: [id])
   pass          Pass         @relation(fields: [passId], references: [id])
   gate          Gate         @relation(fields: [gateId], references: [id])
   collectedBy   User         @relation("PaymentCollector", fields: [collectedById], references: [id])
+  correctedBy   User?        @relation("PaymentCorrector", fields: [correctedById], references: [id])
   ticketDoc     Document?    @relation("PaymentTicketDocument", fields: [ticketDocId], references: [id])
 
   documents     Document[]   @relation("PaymentDocuments")

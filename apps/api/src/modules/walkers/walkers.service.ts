@@ -199,7 +199,19 @@ export class WalkersService {
     const aadhaarEncrypted = AadhaarCryptoUtil.encrypt(cleanAadhaar);
     const aadhaarLast4 = cleanAadhaar.slice(-4);
 
-    // D. Execute atomic transaction
+    // D. Check duplicate physical receipt number
+    const normalizedReceiptNo = input.receiptNo.trim().toUpperCase();
+    const existingReceipt = await this.prisma.payment.findUnique({
+      where: { receiptNo: normalizedReceiptNo },
+    });
+    if (existingReceipt) {
+      throw new ConflictException({
+        code: 'DUPLICATE_RECEIPT_NO',
+        message: `Physical receipt number ${normalizedReceiptNo} has already been recorded`,
+      });
+    }
+
+    // E. Execute atomic transaction
     const now = new Date();
     const expiryDate = calculateNewPassExpiry(now);
 
@@ -252,18 +264,7 @@ export class WalkersService {
         ],
       });
 
-      // 4. Generate annual sequential receipt number
-      const currentYear = now.getUTCFullYear();
-      const countThisYear = await tx.payment.count({
-        where: {
-          createdAt: {
-            gte: new Date(`${currentYear}-01-01T00:00:00.000Z`),
-          },
-        },
-      });
-      const receiptNo = `RCP-${currentYear}-${String(countThisYear + 1).padStart(6, '0')}`;
-
-      // 5. Create Payment record (Integer paise: 20000 = Rs 200)
+      // 4. Create Payment record with physical receipt number (Integer paise: 20000 = Rs 200)
       const payment = await tx.payment.create({
         data: {
           walkerId: walker.id,
@@ -273,7 +274,7 @@ export class WalkersService {
           amountPaise: PASS_CONFIG.PRICE_PAISE,
           mode: input.paymentMode as PaymentMode,
           type: 'NEW',
-          receiptNo,
+          receiptNo: normalizedReceiptNo,
         },
       });
 
@@ -522,6 +523,17 @@ export class WalkersService {
       }
     }
 
+    const normalizedReceiptNo = input.receiptNo.trim().toUpperCase();
+    const existingReceipt = await this.prisma.payment.findUnique({
+      where: { receiptNo: normalizedReceiptNo },
+    });
+    if (existingReceipt) {
+      throw new ConflictException({
+        code: 'DUPLICATE_RECEIPT_NO',
+        message: `Physical receipt number ${normalizedReceiptNo} has already been recorded`,
+      });
+    }
+
     const now = new Date();
 
     const result = await this.prisma.$transaction(
@@ -579,18 +591,7 @@ export class WalkersService {
           },
         });
 
-        // 3. Generate sequential receipt number
-        const currentYear = now.getUTCFullYear();
-        const countThisYear = await tx.payment.count({
-          where: {
-            createdAt: {
-              gte: new Date(`${currentYear}-01-01T00:00:00.000Z`),
-            },
-          },
-        });
-        const receiptNo = `RCP-${currentYear}-${String(countThisYear + 1).padStart(6, '0')}`;
-
-        // 4. Create Immutable Payment Record
+        // 3. Create Immutable Payment Record with physical receipt number (Integer paise: 20000 = Rs 200)
         const payment = await tx.payment.create({
           data: {
             walkerId,
@@ -600,7 +601,7 @@ export class WalkersService {
             amountPaise: PASS_CONFIG.PRICE_PAISE,
             mode: input.paymentMode as PaymentMode,
             type: 'RENEWAL',
-            receiptNo,
+            receiptNo: normalizedReceiptNo,
             ticketDocId: ticketDoc.id,
           },
         });

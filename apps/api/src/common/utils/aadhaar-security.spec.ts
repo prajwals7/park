@@ -88,7 +88,11 @@ describe('Aadhaar Security, Encryption, and Reveal Suite', () => {
       findUnique: ReturnType<typeof vi.fn>;
     };
     pass: { create: ReturnType<typeof vi.fn> };
-    payment: { count: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn> };
+    payment: {
+      count: ReturnType<typeof vi.fn>;
+      create: ReturnType<typeof vi.fn>;
+      findUnique: ReturnType<typeof vi.fn>;
+    };
     document: { createMany: ReturnType<typeof vi.fn> };
     auditLog: { create: ReturnType<typeof vi.fn> };
     $transaction: ReturnType<typeof vi.fn>;
@@ -116,7 +120,7 @@ describe('Aadhaar Security, Encryption, and Reveal Suite', () => {
           findUnique: vi.fn(),
         },
         pass: { create: vi.fn() },
-        payment: { count: vi.fn(), create: vi.fn() },
+        payment: { count: vi.fn(), create: vi.fn(), findUnique: vi.fn().mockResolvedValue(null) },
         document: { createMany: vi.fn() },
         auditLog: { create: vi.fn() },
         $transaction: vi.fn(async (cb: (tx: unknown) => Promise<unknown>) => cb(mockPrisma)),
@@ -153,6 +157,7 @@ describe('Aadhaar Security, Encryption, and Reveal Suite', () => {
             aadhaarStorageKey: 'docs/aadhaar.jpg',
             passportStorageKey: 'docs/photo.jpg',
             paymentMode: 'CASH',
+            receiptNo: 'RC-000101',
             allowDuplicatePhoneOverride: false,
           },
           'collector-1',

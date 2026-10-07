@@ -1,7 +1,15 @@
 'use client';
 
 import React, { useState, useId } from 'react';
-import { VerhoeffUtil, aadhaarSchema, GATES, formatPaiseToInr, PASS_CONFIG } from '@wpd/shared';
+import {
+  VerhoeffUtil,
+  aadhaarSchema,
+  receiptNoSchema,
+  passNoSchema,
+  GATES,
+  formatPaiseToInr,
+  PASS_CONFIG,
+} from '@wpd/shared';
 import {
   ShieldCheck,
   AlertCircle,
@@ -11,6 +19,10 @@ import {
   User,
   Phone,
   MapPin,
+  Receipt,
+  CreditCard,
+  Banknote,
+  Tag,
 } from 'lucide-react';
 
 interface WalkerRegistrationFormProps {
@@ -19,10 +31,13 @@ interface WalkerRegistrationFormProps {
 
 export function WalkerRegistrationForm({ onSuccess }: WalkerRegistrationFormProps) {
   const formId = useId();
+  const [passNo, setPassNo] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [gateId, setGateId] = useState<string>(GATES[0]);
   const [aadhaarRaw, setAadhaarRaw] = useState('');
+  const [paymentMode, setPaymentMode] = useState<'CASH' | 'UPI'>('CASH');
+  const [receiptNo, setReceiptNo] = useState('');
   const [consentAgreed, setConsentAgreed] = useState(false);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,10 +81,31 @@ export function WalkerRegistrationForm({ onSuccess }: WalkerRegistrationFormProp
 
   const validationStatus = getAadhaarValidationStatus();
 
+  // Live Receipt number validation (3 to 20 chars, letters/digits/hyphen)
+  const normalizedReceiptNo = receiptNo.trim().toUpperCase();
+  const receiptValidation = receiptNoSchema.safeParse(normalizedReceiptNo);
+  const isReceiptValid = receiptValidation.success;
+
+  // Live Pass number validation
+  const passValidation = passNoSchema.safeParse(passNo.trim());
+  const isPassValid = passValidation.success;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
+
+    if (!isPassValid) {
+      setErrorMessage('Please enter a valid physical pass number (3-30 characters).');
+      return;
+    }
+
+    if (!isReceiptValid) {
+      setErrorMessage(
+        'Please enter a valid physical receipt number (3-20 characters, letters, digits, and hyphens only).',
+      );
+      return;
+    }
 
     if (!consentAgreed) {
       setErrorMessage('Explicit citizen consent is mandatory to process Aadhaar details.');
@@ -88,14 +124,18 @@ export function WalkerRegistrationForm({ onSuccess }: WalkerRegistrationFormProp
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          passNo: passNo.trim(),
           name: name.trim(),
           phone: phone.trim(),
           gateId,
           aadhaarNumber: cleanAadhaar,
+          aadhaarStorageKey: 'documents/aadhaar_default.jpg',
+          passportStorageKey: 'documents/photo_default.jpg',
           consentAgreed: true,
           notes: notes.trim() || undefined,
           amountPaise: PASS_CONFIG.PRICE_PAISE,
-          paymentMode: 'CASH',
+          paymentMode,
+          receiptNo: normalizedReceiptNo,
         }),
       });
 
@@ -104,14 +144,18 @@ export function WalkerRegistrationForm({ onSuccess }: WalkerRegistrationFormProp
         throw new Error(data.message || 'Registration failed');
       }
 
-      setSuccessMessage(`Walker registered successfully! Pass No: ${data.passNo}`);
+      setSuccessMessage(
+        `Walker registered successfully! Pass No: ${data.passNo} (Receipt: ${normalizedReceiptNo})`,
+      );
       if (onSuccess) {
         onSuccess(data);
       }
       // Reset form
+      setPassNo('');
       setName('');
       setPhone('');
       setAadhaarRaw('');
+      setReceiptNo('');
       setConsentAgreed(false);
       setNotes('');
     } catch (err: unknown) {
@@ -134,12 +178,12 @@ export function WalkerRegistrationForm({ onSuccess }: WalkerRegistrationFormProp
             New Walker Registration
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Standard 30-day park pass ({formatPaiseToInr(PASS_CONFIG.PRICE_PAISE)})
+            Standard 30-day physical park pass ({formatPaiseToInr(PASS_CONFIG.PRICE_PAISE)})
           </p>
         </div>
         <div className="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-full border border-indigo-200">
           <ShieldCheck className="w-4 h-4" />
-          AES-256 Protected
+          Physical Ticket & AES-256 Protected
         </div>
       </div>
 
@@ -158,6 +202,66 @@ export function WalkerRegistrationForm({ onSuccess }: WalkerRegistrationFormProp
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Physical Pass Number Input */}
+        <div>
+          <label
+            htmlFor={`${formId}-passNo`}
+            className="block text-xs font-semibold text-slate-700 uppercase mb-1"
+          >
+            Physical Pass Number *
+          </label>
+          <div className="relative">
+            <Tag className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+            <input
+              id={`${formId}-passNo`}
+              type="text"
+              required
+              value={passNo}
+              onChange={(e) => setPassNo(e.target.value)}
+              placeholder="e.g. PASS-00101"
+              className={`w-full pl-9 pr-3 py-2 border rounded-lg text-sm uppercase font-mono focus:outline-none focus:ring-2 ${
+                passNo && isPassValid
+                  ? 'border-emerald-500 focus:ring-emerald-500'
+                  : 'focus:ring-indigo-500'
+              }`}
+            />
+          </div>
+          <p className="text-[11px] text-slate-400 mt-1">
+            Pre-printed number on the physical pass card handed to walker
+          </p>
+        </div>
+
+        {/* Physical Receipt Number Input */}
+        <div>
+          <label
+            htmlFor={`${formId}-receiptNo`}
+            className="block text-xs font-semibold text-slate-700 uppercase mb-1"
+          >
+            Physical Receipt Slip No. *
+          </label>
+          <div className="relative">
+            <Receipt className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+            <input
+              id={`${formId}-receiptNo`}
+              type="text"
+              required
+              value={receiptNo}
+              onChange={(e) => setReceiptNo(e.target.value.toUpperCase())}
+              placeholder="e.g. RC-000101"
+              className={`w-full pl-9 pr-3 py-2 border rounded-lg text-sm uppercase font-mono focus:outline-none focus:ring-2 ${
+                receiptNo && isReceiptValid
+                  ? 'border-emerald-500 focus:ring-emerald-500'
+                  : receiptNo && !isReceiptValid
+                    ? 'border-red-500 focus:ring-red-500'
+                    : 'focus:ring-indigo-500'
+              }`}
+            />
+          </div>
+          <p className="text-[11px] text-slate-400 mt-1">
+            Pre-printed number on the cash/UPI receipt slip (3-20 alphanumeric/hyphens)
+          </p>
+        </div>
+
         <div>
           <label
             htmlFor={`${formId}-name`}
@@ -222,8 +326,47 @@ export function WalkerRegistrationForm({ onSuccess }: WalkerRegistrationFormProp
           </div>
         </div>
 
-        {/* 12-Digit Aadhaar Input with live Verhoeff Checksum Validation */}
+        {/* Payment Mode Selector (CASH / UPI) */}
         <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs font-semibold text-slate-700 uppercase">
+              Payment Mode (Physical Gate Collection) *
+            </label>
+            <span className="text-[11px] text-slate-400">Reporting & Accounting Only</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setPaymentMode('CASH')}
+              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg border text-sm font-medium transition ${
+                paymentMode === 'CASH'
+                  ? 'bg-emerald-50 border-emerald-500 text-emerald-800 ring-2 ring-emerald-500/20'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Banknote className="w-4 h-4 text-emerald-600" />
+              Cash (Physical)
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaymentMode('UPI')}
+              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg border text-sm font-medium transition ${
+                paymentMode === 'UPI'
+                  ? 'bg-indigo-50 border-indigo-500 text-indigo-800 ring-2 ring-indigo-500/20'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <CreditCard className="w-4 h-4 text-indigo-600" />
+              UPI (QR Scan)
+            </button>
+          </div>
+          <p className="text-[11px] text-slate-400 mt-1">
+            No online payment gateway; collected physically at the gate slip desk.
+          </p>
+        </div>
+
+        {/* 12-Digit Aadhaar Input with live Verhoeff Checksum Validation */}
+        <div className="md:col-span-2">
           <div className="flex items-center justify-between mb-1">
             <label
               htmlFor={`${formId}-aadhaar`}
@@ -324,9 +467,11 @@ export function WalkerRegistrationForm({ onSuccess }: WalkerRegistrationFormProp
         <button
           type="button"
           onClick={() => {
+            setPassNo('');
             setName('');
             setPhone('');
             setAadhaarRaw('');
+            setReceiptNo('');
             setConsentAgreed(false);
             setNotes('');
           }}
@@ -337,11 +482,13 @@ export function WalkerRegistrationForm({ onSuccess }: WalkerRegistrationFormProp
 
         <button
           type="submit"
-          disabled={isSubmitting || !consentAgreed || !isVerhoeffValid}
+          disabled={isSubmitting || !consentAgreed || !isVerhoeffValid || !isReceiptValid}
           className="px-6 py-2.5 bg-indigo-600 text-white font-medium text-sm rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
         >
           <FileText className="w-4 h-4" />
-          {isSubmitting ? 'Processing Transaction...' : 'Register & Issue Pass (₹200)'}
+          {isSubmitting
+            ? 'Recording Physical Pass...'
+            : `Issue Physical Pass (₹200 ${paymentMode})`}
         </button>
       </div>
     </form>

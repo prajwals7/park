@@ -8,7 +8,7 @@ import { ShieldCheck, UserPlus, Users, Sparkles } from 'lucide-react';
 
 const INITIAL_DEMO_WALKER: WalkerProfileData = {
   id: 'walker-demo-1',
-  passNo: 'P2026-0001',
+  passNo: 'PASS-00101',
   name: 'Ananya Sharma',
   phone: '9845012345',
   gateId: 'G2',
@@ -16,6 +16,9 @@ const INITIAL_DEMO_WALKER: WalkerProfileData = {
   maskedAadhaar: 'XXXX XXXX 4511',
   status: 'ACTIVE',
   expiryDate: '06 Nov 2026',
+  latestPaymentId: 'pay-001',
+  latestReceiptNo: 'RC-000101',
+  latestPaymentMode: 'CASH',
 };
 
 export default function HomePage() {

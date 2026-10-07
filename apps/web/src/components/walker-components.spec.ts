@@ -36,4 +36,19 @@ describe('Web UI Aadhaar Formatting & Validation Integration', () => {
     // Valid 12 digits with valid Verhoeff checksum
     expect(aadhaarSchema.safeParse('367598324511').success).toBe(true);
   });
+
+  it('validates and normalises physical receipt numbers in UI', async () => {
+    const { receiptNoSchema } = await import('@wpd/shared');
+    expect(receiptNoSchema.parse(' rc-000101 ')).toBe('RC-000101');
+    expect(receiptNoSchema.safeParse('RC-101').success).toBe(true);
+    expect(receiptNoSchema.safeParse('12').success).toBe(false);
+    expect(receiptNoSchema.safeParse('RC#101').success).toBe(false);
+  });
+
+  it('validates physical pass numbers in UI', async () => {
+    const { passNoSchema } = await import('@wpd/shared');
+    expect(passNoSchema.parse(' PASS-00101 ')).toBe('PASS-00101');
+    expect(passNoSchema.safeParse('P1').success).toBe(false);
+    expect(passNoSchema.safeParse('PASS-00101').success).toBe(true);
+  });
 });

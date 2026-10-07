@@ -126,12 +126,11 @@ async function main() {
   ];
 
   const now = new Date('2026-10-06T12:00:00.000Z');
-  let receiptSeq = 1;
 
   for (let i = 0; i < 25; i++) {
     const name = indianNames[i]!;
     const phone = `9880${String(100000 + i).slice(1)}`;
-    const passNo = `WPD-${2026}-${String(1001 + i)}`;
+    const passNo = `PASS-${String(1001 + i)}`;
     const assignedGate = gates[i % 3]!;
     const aadhaar4 = String(2000 + ((i * 137) % 8000)).padStart(4, '0');
 
@@ -234,8 +233,8 @@ async function main() {
       ticketDocId = ticketDoc.id;
     }
 
-    // Payment record
-    const receiptNo = `RCP-2026-${String(receiptSeq++).padStart(6, '0')}`;
+    // Physical Receipt record supplied by collector (RC-000101 format)
+    const receiptNo = `RC-${String(100101 + i)}`;
     const payment = await prisma.payment.create({
       data: {
         walkerId: walker.id,
@@ -243,7 +242,7 @@ async function main() {
         gateId: assignedGate.id,
         collectedById: collector.id,
         amountPaise: 20000,
-        mode: i % 2 === 0 ? PaymentMode.UPI : PaymentMode.CASH,
+        mode: i % 2 === 0 ? PaymentMode.CASH : PaymentMode.UPI,
         type: paymentType,
         receiptNo,
         ticketDocId: ticketDocId || null,

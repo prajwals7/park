@@ -24,6 +24,26 @@ export function formatMaskedAadhaar(last4?: string | null): string {
   return `XXXX XXXX ${last4}`;
 }
 
+// Physical Receipt Number Schema:
+// 3 to 20 characters, trimmed and uppercased, uppercase letters, digits, and hyphens only
+export const receiptNoSchema = z
+  .string({ required_error: 'Physical receipt number is required' })
+  .trim()
+  .transform((val) => val.toUpperCase())
+  .refine((val) => val.length >= 3 && val.length <= 20, {
+    message: 'Receipt number must be between 3 and 20 characters',
+  })
+  .refine((val) => /^[A-Z0-9-]+$/.test(val), {
+    message: 'Receipt number must contain only uppercase letters, numbers, and hyphens',
+  });
+
+// Physical Pass Number Schema: 3 to 30 characters
+export const passNoSchema = z
+  .string({ required_error: 'Physical pass number is required' })
+  .trim()
+  .min(3, 'Pass number must be at least 3 characters')
+  .max(30, 'Pass number cannot exceed 30 characters');
+
 // Query filters schema for listing walkers
 export const listWalkersQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -41,7 +61,7 @@ export type ListWalkersQueryInput = z.infer<typeof listWalkersQuerySchema>;
 // Register walker input schema
 export const createWalkerSchema = z
   .object({
-    passNo: z.string().trim().min(3).max(30),
+    passNo: passNoSchema,
     name: z.string().trim().min(2).max(100),
     phone: phoneSchema,
     gateId: z.string().uuid(),
@@ -52,7 +72,10 @@ export const createWalkerSchema = z
     notes: z.string().trim().max(500).optional(),
     aadhaarStorageKey: z.string().min(5),
     passportStorageKey: z.string().min(5),
-    paymentMode: z.enum(PAYMENT_MODES),
+    paymentMode: z.enum(PAYMENT_MODES, {
+      errorMap: () => ({ message: 'Payment mode is required and must be CASH or UPI' }),
+    }),
+    receiptNo: receiptNoSchema,
     allowDuplicatePhoneOverride: z.boolean().default(false),
     overrideReason: z.string().trim().min(5).max(255).optional(),
   })
@@ -111,7 +134,31 @@ export type SoftDeleteWalkerInput = z.infer<typeof softDeleteWalkerSchema>;
 // Renew pass input
 export const renewWalkerPassSchema = z.object({
   gateId: z.string().uuid(),
-  paymentMode: z.enum(PAYMENT_MODES),
+  paymentMode: z.enum(PAYMENT_MODES, {
+    errorMap: () => ({ message: 'Payment mode is required and must be CASH or UPI' }),
+  }),
+  receiptNo: receiptNoSchema,
   ticketStorageKey: z.string().min(5, 'Ticket document storage key is required'),
 });
 export type RenewWalkerPassInput = z.infer<typeof renewWalkerPassSchema>;
+
+// Admin correction of physical payment receipt number or payment mode
+export const correctPaymentSchema = z
+  .object({
+    receiptNo: receiptNoSchema.optional(),
+    mode: z
+      .enum(PAYMENT_MODES, {
+        errorMap: () => ({ message: 'Payment mode must be CASH or UPI' }),
+      })
+      .optional(),
+    reason: z
+      .string({ required_error: 'Correction reason is required' })
+      .trim()
+      .min(5, 'Correction reason must be at least 5 characters')
+      .max(300, 'Correction reason cannot exceed 300 characters'),
+  })
+  .refine((data) => Boolean(data.receiptNo || data.mode), {
+    message: 'At least one of physical receipt number or payment mode must be provided',
+    path: ['receiptNo'],
+  });
+export type CorrectPaymentInput = z.infer<typeof correctPaymentSchema>;
