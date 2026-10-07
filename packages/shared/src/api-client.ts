@@ -15,6 +15,20 @@ import {
   ReceiptRegisterQueryInput,
   ExportQueryInput,
 } from './report-schemas.js';
+import {
+  CreateUserInput,
+  UpdateUserStatusInput,
+  AdminResetPasswordInput,
+  Force2faInput,
+  ListUsersQueryInput,
+  CreateGateInput,
+  UpdateGateInput,
+  UpdateSettingsInput,
+  AuditLogsQueryInput,
+  ExportWalkersQueryInput,
+  DashboardOverviewQueryInput,
+  DashboardOverviewResponse,
+} from './admin-schemas.js';
 
 export class ApiClientError extends Error {
   constructor(
@@ -249,6 +263,15 @@ export class ApiClient {
         method: 'POST',
         body: JSON.stringify(input),
       }),
+
+    export: (query: Partial<ExportWalkersQueryInput> = {}) => {
+      const sp = new URLSearchParams();
+      if (!query.format) sp.set('format', 'csv');
+      Object.entries(query).forEach(([k, v]) => {
+        if (v !== undefined) sp.set(k, String(v));
+      });
+      return `${this.baseUrl}/api/v1/walkers/export?${sp.toString()}`;
+    },
   };
 
   // ==========================================
@@ -327,6 +350,101 @@ export class ApiClient {
         if (v !== undefined) sp.set(k, String(v));
       });
       return `${this.baseUrl}/api/v1/reports/export/payments?${sp.toString()}`;
+    },
+  };
+
+  // ==========================================
+  // Admin Namespace (Admin Only)
+  // ==========================================
+  readonly admin = {
+    getDashboard: (query: DashboardOverviewQueryInput = { range: '7d' }) => {
+      const sp = new URLSearchParams();
+      Object.entries(query).forEach(([k, v]) => {
+        if (v !== undefined) sp.set(k, String(v));
+      });
+      return this.request<DashboardOverviewResponse>(`/api/v1/admin/dashboard?${sp.toString()}`);
+    },
+
+    listUsers: (query: Partial<ListUsersQueryInput> = {}) => {
+      const sp = new URLSearchParams();
+      Object.entries(query).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) sp.set(k, String(v));
+      });
+      return this.request<{
+        total: number;
+        page: number;
+        limit: number;
+        data: Array<Record<string, unknown>>;
+      }>(`/api/v1/admin/users?${sp.toString()}`);
+    },
+
+    createUser: (input: CreateUserInput) =>
+      this.request<Record<string, unknown>>('/api/v1/admin/users', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+
+    updateUserStatus: (id: string, input: UpdateUserStatusInput) =>
+      this.request<Record<string, unknown>>(`/api/v1/admin/users/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }),
+
+    resetUserPassword: (id: string, input: AdminResetPasswordInput) =>
+      this.request<{ message: string }>(`/api/v1/admin/users/${id}/reset-password`, {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+
+    force2fa: (id: string, input: Force2faInput) =>
+      this.request<{ message: string }>(`/api/v1/admin/users/${id}/force-2fa`, {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }),
+
+    listGates: () =>
+      this.request<Array<Record<string, unknown>>>('/api/v1/admin/gates'),
+
+    createGate: (input: CreateGateInput) =>
+      this.request<Record<string, unknown>>('/api/v1/admin/gates', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+
+    updateGate: (id: string, input: UpdateGateInput) =>
+      this.request<Record<string, unknown>>(`/api/v1/admin/gates/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }),
+
+    getSettings: () =>
+      this.request<Record<string, unknown>>('/api/v1/admin/settings'),
+
+    updateSettings: (input: UpdateSettingsInput) =>
+      this.request<Record<string, unknown>>('/api/v1/admin/settings', {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }),
+
+    listAuditLogs: (query: Partial<AuditLogsQueryInput> = {}) => {
+      const sp = new URLSearchParams();
+      Object.entries(query).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) sp.set(k, String(v));
+      });
+      return this.request<{
+        total: number;
+        page: number;
+        limit: number;
+        data: Array<Record<string, unknown>>;
+      }>(`/api/v1/audit-logs?${sp.toString()}`);
+    },
+
+    exportAuditLogs: (query: Partial<AuditLogsQueryInput> = {}) => {
+      const sp = new URLSearchParams();
+      Object.entries(query).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) sp.set(k, String(v));
+      });
+      return `${this.baseUrl}/api/v1/audit-logs/export?${sp.toString()}`;
     },
   };
 }

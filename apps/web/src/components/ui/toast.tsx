@@ -12,13 +12,18 @@ export interface ToastItem {
   message?: string;
 }
 
+export interface ToastOptions {
+  type?: ToastType;
+  variant?: 'default' | 'destructive' | 'success' | 'warning';
+  title: string;
+  message?: string;
+  description?: string;
+  durationMs?: number;
+}
+
 interface ToastContextType {
-  toast: (options: {
-    type?: ToastType;
-    title: string;
-    message?: string;
-    durationMs?: number;
-  }) => void;
+  toast: (options: ToastOptions) => void;
+  addToast: (options: ToastOptions) => void;
   removeToast: (id: string) => void;
 }
 
@@ -33,18 +38,23 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const toast = useCallback(
     ({
-      type = 'info',
+      type,
+      variant,
       title,
       message,
+      description,
       durationMs = 4000,
-    }: {
-      type?: ToastType;
-      title: string;
-      message?: string;
-      durationMs?: number;
-    }) => {
+    }: ToastOptions) => {
+      let resolvedType: ToastType = type || 'info';
+      if (variant === 'destructive') resolvedType = 'error';
+      else if (variant === 'success') resolvedType = 'success';
+      else if (variant === 'warning') resolvedType = 'warning';
+
       const id = Math.random().toString(36).substring(2, 9);
-      setToasts((prev) => [...prev, { id, type, title, message }]);
+      setToasts((prev) => [
+        ...prev,
+        { id, type: resolvedType, title, message: description || message },
+      ]);
 
       if (durationMs > 0) {
         setTimeout(() => {
@@ -56,7 +66,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <ToastContext.Provider value={{ toast, removeToast }}>
+    <ToastContext.Provider value={{ toast, addToast: toast, removeToast }}>
       {children}
       {/* Toast viewport container with ARIA Live */}
       <div

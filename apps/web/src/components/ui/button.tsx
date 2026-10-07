@@ -2,7 +2,13 @@ import React from 'react';
 import { Loader2 } from 'lucide-react';
 
 export type ButtonVariant =
-  'primary' | 'accent' | 'secondary' | 'outline' | 'ghost' | 'destructive';
+  | 'primary'
+  | 'default'
+  | 'accent'
+  | 'secondary'
+  | 'outline'
+  | 'ghost'
+  | 'destructive';
 
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
@@ -28,6 +34,8 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ) => {
     const variantStyles: Record<ButtonVariant, string> = {
       primary:
+        'bg-park-900 text-white hover:bg-park-800 dark:bg-park-600 dark:hover:bg-park-500 shadow-xs focus-visible:ring-park-700',
+      default:
         'bg-park-900 text-white hover:bg-park-800 dark:bg-park-600 dark:hover:bg-park-500 shadow-xs focus-visible:ring-park-700',
       accent:
         'bg-warmAmber-600 text-white hover:bg-warmAmber-700 dark:bg-warmAmber-500 dark:hover:bg-warmAmber-600 shadow-xs focus-visible:ring-warmAmber-600',

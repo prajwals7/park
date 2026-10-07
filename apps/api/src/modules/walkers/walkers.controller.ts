@@ -9,11 +9,12 @@ import {
   Body,
   Headers,
   Req,
+  Res,
   UseGuards,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiHeader } from '@nestjs/swagger';
 import { WalkersService } from './walkers.service.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
@@ -24,6 +25,8 @@ import { Role } from '@prisma/client';
 import {
   listWalkersQuerySchema,
   ListWalkersQueryInput,
+  exportWalkersQuerySchema,
+  ExportWalkersQueryInput,
   createWalkerSchema,
   CreateWalkerInput,
   updateWalkerSchema,
@@ -41,6 +44,47 @@ import {
 @Controller('walkers')
 export class WalkersController {
   constructor(private walkersService: WalkersService) {}
+
+  // Bulk Export Walkers (Admin only, place before :id to prevent route shadowing)
+  @Get('export')
+  @UseGuards(RolesGuard)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
+  @ApiOperation({
+    summary: 'Bulk export walkers roster to CSV or Excel with formula injection protection',
+  })
+  @ApiResponse({ status: 200, description: 'File generated and streamed' })
+  @ApiResponse({ status: 403, description: 'Forbidden - requires Admin role' })
+  async exportWalkers(
+    @Query(new ZodValidationPipe(exportWalkersQuerySchema)) query: ExportWalkersQueryInput,
+    @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    const ip = req.ip || req.socket?.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+    const dateStr = new Date().toISOString().slice(0, 10);
+
+    const result = await this.walkersService.exportWalkers(query, user.id, ip, userAgent);
+
+    if (query.format === 'excel') {
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="walkers-roster-${dateStr}.xlsx"`,
+      );
+      return res.send(result);
+    }
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="walkers-roster-${dateStr}.csv"`,
+    );
+    return res.send(result);
+  }
 
   // 1. List / Search Walkers
   @Get()

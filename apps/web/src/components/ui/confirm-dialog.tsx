@@ -12,8 +12,10 @@ export interface ConfirmDialogProps {
   title: string;
   description: string;
   confirmLabel?: string;
+  confirmText?: string;
   cancelLabel?: string;
   isDestructive?: boolean;
+  variant?: 'destructive' | 'primary' | 'default' | string;
   isLoading?: boolean;
 }
 
@@ -24,10 +26,14 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel = 'Confirm Action',
+  confirmText,
   cancelLabel = 'Cancel',
   isDestructive = true,
+  variant,
   isLoading = false,
 }: ConfirmDialogProps) {
+  const finalConfirmLabel = confirmText || confirmLabel;
+  const isDestr = variant !== undefined ? variant === 'destructive' : isDestructive;
   return (
     <Dialog isOpen={isOpen} onClose={onClose} title={title}>
       <div className="space-y-4">
@@ -44,12 +50,12 @@ export function ConfirmDialog({
           </Button>
           <Button
             type="button"
-            variant={isDestructive ? 'destructive' : 'primary'}
+            variant={isDestr ? 'destructive' : 'primary'}
             size="sm"
             isLoading={isLoading}
             onClick={onConfirm}
           >
-            {confirmLabel}
+            {finalConfirmLabel}
           </Button>
         </div>
       </div>

@@ -14,6 +14,8 @@ import {
   SoftDeleteWalkerInput,
   RenewWalkerPassInput,
   ListWalkersQueryInput,
+  ExportWalkersQueryInput,
+  sanitizeForFormulaInjection,
   calculateNewPassExpiry,
   calculateRenewalExpiry,
   calculatePassStatus,
@@ -23,6 +25,7 @@ import {
 } from '@wpd/shared';
 import { Role, Prisma, PassStatus } from '@prisma/client';
 import { AadhaarCryptoUtil } from '../../common/utils/aadhaar-crypto.util.js';
+import ExcelJS from 'exceljs';
 
 // In-memory idempotency cache for transactions: key -> result payload
 const idempotencyStore = new Map<string, { result: unknown; expiresAt: number }>();
@@ -754,5 +757,169 @@ export class WalkersService {
       maskedAadhaar: formatMaskedAadhaar(walker.aadhaarLast4),
       expiresAt,
     };
+  }
+
+  // 9. Bulk Export Walkers (CSV / Excel) with formula-injection protection and UTF-8 BOM
+  async exportWalkers(
+    query: ExportWalkersQueryInput,
+    adminId: string,
+    ip?: string,
+    userAgent?: string,
+  ): Promise<Buffer | string> {
+    const where: Prisma.WalkerWhereInput = {
+      deletedAt: null,
+    };
+
+    if (query.gateId) {
+      where.gateId = query.gateId;
+    }
+
+    if (query.search) {
+      where.OR = [
+        { name: { contains: query.search, mode: 'insensitive' } },
+        { phone: { contains: query.search } },
+        { passNo: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
+
+    const walkers = await this.prisma.walker.findMany({
+      where,
+      include: {
+        gate: { select: { code: true, name: true } },
+        passes: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const now = new Date();
+    const filteredRows: Array<{
+      passNo: string;
+      name: string;
+      phone: string;
+      gate: string;
+      status: string;
+      startDate: string;
+      expiryDate: string;
+      daysRemaining: number;
+      notes: string;
+      createdAt: string;
+    }> = [];
+
+    for (const w of walkers) {
+      const latestPass = w.passes[0];
+      const expiry = latestPass ? new Date(latestPass.expiryDate) : null;
+      const daysRemaining = expiry
+        ? Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+        : 0;
+      const status = !expiry
+        ? 'EXPIRED'
+        : daysRemaining < 0
+        ? 'EXPIRED'
+        : daysRemaining <= PASS_CONFIG.EXPIRING_THRESHOLD_DAYS
+        ? 'EXPIRING'
+        : 'ACTIVE';
+
+      if (query.status && status !== query.status) {
+        continue;
+      }
+
+      if (query.expiryStart && expiry && expiry < new Date(query.expiryStart)) {
+        continue;
+      }
+      if (query.expiryEnd && expiry && expiry > new Date(query.expiryEnd)) {
+        continue;
+      }
+
+      filteredRows.push({
+        passNo: w.passNo,
+        name: w.name,
+        phone: w.phone,
+        gate: `Gate ${w.gate.code} (${w.gate.name})`,
+        status,
+        startDate: latestPass ? latestPass.startDate.toISOString().slice(0, 10) : 'N/A',
+        expiryDate: latestPass ? latestPass.expiryDate.toISOString().slice(0, 10) : 'N/A',
+        daysRemaining,
+        notes: w.notes || '',
+        createdAt: w.createdAt.toISOString().slice(0, 10),
+      });
+    }
+
+    // Write audit log with exact filters applied
+    await this.auditService.log({
+      actorId: adminId,
+      action: 'EXPORT_WALKERS',
+      entity: 'Walker',
+      entityId: 'ALL_WALKERS',
+      after: {
+        exportType: 'WALKERS',
+        format: query.format,
+        filters: query,
+        recordCount: filteredRows.length,
+      },
+      ip,
+      userAgent,
+    });
+
+    const headers = [
+      'Pass No',
+      'Walker Name',
+      'Phone',
+      'Registered Gate',
+      'Status',
+      'Pass Start Date',
+      'Pass Expiry Date',
+      'Days Remaining',
+      'Notes',
+      'Registration Date',
+    ];
+
+    const dataRows = filteredRows.map((r) => [
+      sanitizeForFormulaInjection(r.passNo),
+      sanitizeForFormulaInjection(r.name),
+      sanitizeForFormulaInjection(r.phone),
+      sanitizeForFormulaInjection(r.gate),
+      sanitizeForFormulaInjection(r.status),
+      sanitizeForFormulaInjection(r.startDate),
+      sanitizeForFormulaInjection(r.expiryDate),
+      sanitizeForFormulaInjection(r.daysRemaining),
+      sanitizeForFormulaInjection(r.notes),
+      sanitizeForFormulaInjection(r.createdAt),
+    ]);
+
+    if (query.format === 'excel') {
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'Walker Pass Desk';
+      workbook.created = new Date();
+      const sheet = workbook.addWorksheet('Walkers Roster');
+      const headerRow = sheet.addRow(headers);
+      headerRow.font = { bold: true };
+      headerRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFD1FAE5' },
+      };
+      for (const row of dataRows) {
+        sheet.addRow(row);
+      }
+      sheet.columns.forEach((col) => {
+        col.width = 20;
+      });
+      const buffer = await workbook.xlsx.writeBuffer();
+      return Buffer.from(buffer);
+    }
+
+    const escapeCsv = (val: string) => {
+      if (val.includes('"') || val.includes(',') || val.includes('\n')) {
+        return `"${val.replace(/"/g, '""')}"`;
+      }
+      return val;
+    };
+
+    const headerLine = headers.map(escapeCsv).join(',');
+    const rowLines = dataRows.map((r) => r.map(escapeCsv).join(','));
+    return `\uFEFF${headerLine}\n${rowLines.join('\n')}\n`;
   }
 }

@@ -3,6 +3,11 @@ export type Gate = (typeof GATES)[number];
 
 export const USER_ROLES = ['SUPER_ADMIN', 'ADMIN', 'COLLECTOR'] as const;
 export type UserRole = (typeof USER_ROLES)[number];
+export const ROLES = USER_ROLES;
+export type Role = UserRole;
+
+export const USER_STATUSES = ['ACTIVE', 'DISABLED'] as const;
+export type UserStatus = (typeof USER_STATUSES)[number];
 
 export const PASS_STATUSES = ['ACTIVE', 'EXPIRING', 'EXPIRED'] as const;
 export type PassStatus = (typeof PASS_STATUSES)[number];

@@ -13,10 +13,12 @@ import {
 import { Input } from './form-controls';
 
 export interface ColumnDef<T> {
-  key: string;
+  key?: string;
+  accessorKey?: string;
   header: string;
   sortable?: boolean;
   render?: (row: T) => React.ReactNode;
+  cell?: (row: T) => React.ReactNode;
   className?: string;
 }
 
@@ -29,22 +31,25 @@ export interface DataTableProps<T> {
   pageSize?: number;
   emptyTitle?: string;
   emptyDescription?: string;
+  emptyMessage?: string;
   filterSlot?: React.ReactNode;
   className?: string;
 }
 
-export function DataTable<T extends Record<string, unknown>>({
+export function DataTable<T extends object>({
   columns,
   data,
   isLoading = false,
   searchPlaceholder = 'Search records...',
   searchKeys = [],
   pageSize = 10,
-  emptyTitle = 'No records found',
+  emptyTitle,
   emptyDescription = 'Try adjusting your search or filters.',
+  emptyMessage,
   filterSlot,
   className = '',
 }: DataTableProps<T>) {
+  const resolvedEmptyTitle = emptyMessage || emptyTitle || 'No records found';
   const [searchQuery, setSearchQuery] = useState('');
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -58,7 +63,7 @@ export function DataTable<T extends Record<string, unknown>>({
     return data.filter((row) => {
       if (searchKeys.length > 0) {
         return searchKeys.some((k) =>
-          String(row[k] ?? '')
+          String((row as Record<string, unknown>)[k as string] ?? '')
             .toLowerCase()
             .includes(lower),
         );
@@ -75,8 +80,8 @@ export function DataTable<T extends Record<string, unknown>>({
   const sortedData = useMemo(() => {
     if (!sortKey) return filteredData;
     return [...filteredData].sort((a, b) => {
-      const valA = a[sortKey];
-      const valB = b[sortKey];
+      const valA = (a as Record<string, unknown>)[sortKey];
+      const valB = (b as Record<string, unknown>)[sortKey];
 
       if (valA === valB) return 0;
       if (valA === null || valA === undefined) return 1;
@@ -137,35 +142,38 @@ export function DataTable<T extends Record<string, unknown>>({
           <table className="w-full text-xs text-left">
             <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
               <tr>
-                {columns.map((col) => (
-                  <th
-                    key={col.key}
-                    scope="col"
-                    onClick={() => col.sortable && handleSort(col.key)}
-                    className={`p-3 font-semibold ${
-                      col.sortable
-                        ? 'cursor-pointer select-none hover:text-slate-900 dark:hover:text-slate-100'
-                        : ''
-                    } ${col.className || ''}`}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span>{col.header}</span>
-                      {col.sortable && (
-                        <span className="text-slate-400">
-                          {sortKey === col.key ? (
-                            sortDir === 'asc' ? (
-                              <ArrowUp className="w-3.5 h-3.5 text-park-700 dark:text-park-400" />
+                {columns.map((col, idx) => {
+                  const colKey = col.key || col.accessorKey || `col-${idx}`;
+                  return (
+                    <th
+                      key={colKey}
+                      scope="col"
+                      onClick={() => col.sortable && handleSort(colKey)}
+                      className={`p-3 font-semibold ${
+                        col.sortable
+                          ? 'cursor-pointer select-none hover:text-slate-900 dark:hover:text-slate-100'
+                          : ''
+                      } ${col.className || ''}`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span>{col.header}</span>
+                        {col.sortable && (
+                          <span className="text-slate-400">
+                            {sortKey === colKey ? (
+                              sortDir === 'asc' ? (
+                                <ArrowUp className="w-3.5 h-3.5 text-park-700 dark:text-park-400" />
+                              ) : (
+                                <ArrowDown className="w-3.5 h-3.5 text-park-700 dark:text-park-400" />
+                              )
                             ) : (
-                              <ArrowDown className="w-3.5 h-3.5 text-park-700 dark:text-park-400" />
-                            )
-                          ) : (
-                            <ArrowUpDown className="w-3.5 h-3.5 opacity-60" />
-                          )}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                ))}
+                              <ArrowUpDown className="w-3.5 h-3.5 opacity-60" />
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
 
@@ -174,7 +182,7 @@ export function DataTable<T extends Record<string, unknown>>({
                 // Skeleton loading rows
                 Array.from({ length: 5 }).map((_, idx) => (
                   <tr key={idx} className="animate-pulse">
-                    {columns.map((c, i) => (
+                    {columns.map((_, i) => (
                       <td key={i} className="p-3">
                         <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded-md w-3/4" />
                       </td>
@@ -188,7 +196,7 @@ export function DataTable<T extends Record<string, unknown>>({
                     <div className="flex flex-col items-center justify-center space-y-2 text-slate-400 dark:text-slate-500">
                       <FolderOpen className="w-8 h-8" />
                       <div className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                        {emptyTitle}
+                        {resolvedEmptyTitle}
                       </div>
                       <div className="text-xs">{emptyDescription}</div>
                     </div>
@@ -201,14 +209,21 @@ export function DataTable<T extends Record<string, unknown>>({
                     key={idx}
                     className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
                   >
-                    {columns.map((col) => (
-                      <td
-                        key={col.key}
-                        className={`p-3 text-slate-800 dark:text-slate-200 ${col.className || ''}`}
-                      >
-                        {col.render ? col.render(row) : String(row[col.key] ?? '')}
-                      </td>
-                    ))}
+                    {columns.map((col, colIdx) => {
+                      const colKey = col.key || col.accessorKey || `col-${colIdx}`;
+                      return (
+                        <td
+                          key={colKey}
+                          className={`p-3 text-slate-800 dark:text-slate-200 ${col.className || ''}`}
+                        >
+                          {col.render
+                            ? col.render(row)
+                            : col.cell
+                            ? col.cell(row)
+                            : String((row as Record<string, unknown>)[colKey] ?? '')}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))
               )}
