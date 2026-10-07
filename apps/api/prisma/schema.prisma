@@ -62,6 +62,8 @@ model User {
   uploadedDocuments Document[]     @relation("DocumentUploader")
   auditLogs        AuditLog[]
   refreshTokens    RefreshToken[]
+  collectorReconciliations CashReconciliation[] @relation("CollectorReconciliations")
+  adminReconciliations     CashReconciliation[] @relation("AdminReconciliations")
 
   @@map("users")
 }
@@ -76,6 +78,7 @@ model Gate {
 
   walkers   Walker[]
   payments  Payment[]
+  reconciliations CashReconciliation[]
 
   @@map("gates")
 }
@@ -242,3 +245,27 @@ model NotificationLog {
   @@index([createdAt])
   @@map("notification_logs")
 }
+
+model CashReconciliation {
+  id                 String    @id @default(uuid())
+  date               DateTime  // Date of shift (UTC midnight)
+  collectorId        String
+  gateId             String?
+  expectedCashPaise  Int       // Expected amount from recorded cash payments
+  handedOverPaise    Int       // Physical cash handed over by collector
+  differencePaise    Int       // handedOverPaise - expectedCashPaise (negative = shortage, positive = excess)
+  notes              String?   // Shortage / excess note
+  reconciledById     String    // Admin who reconciled the shift
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  collector          User      @relation("CollectorReconciliations", fields: [collectorId], references: [id])
+  reconciledBy       User      @relation("AdminReconciliations", fields: [reconciledById], references: [id])
+  gate               Gate?     @relation(fields: [gateId], references: [id])
+
+  @@unique([date, collectorId])
+  @@index([date])
+  @@index([collectorId])
+  @@map("cash_reconciliations")
+}
+

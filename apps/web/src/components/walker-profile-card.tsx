@@ -14,6 +14,7 @@ import {
   Banknote,
   CreditCard,
   Edit3,
+  Printer,
 } from 'lucide-react';
 import { formatMaskedAadhaar, receiptNoSchema, GATES } from '@wpd/shared';
 
@@ -312,6 +313,18 @@ export function WalkerProfileCard({
                   Correct
                 </button>
               )}
+              <button
+                type="button"
+                title="Print Thermal Receipt"
+                onClick={() => {
+                  const payId = walker.latestPaymentId || 'pay-001';
+                  window.open(`/api/v1/payments/${payId}/receipt?format=html`, '_blank');
+                }}
+                className="text-xs text-slate-600 hover:text-indigo-600 flex items-center gap-0.5"
+              >
+                <Printer className="w-3 h-3 text-slate-500" />
+                Thermal Slip
+              </button>
             </div>
           </div>
         </div>

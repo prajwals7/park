@@ -1,6 +1,9 @@
 import {
   Controller,
   Patch,
+  Get,
+  Query,
+  Res,
   Param,
   Body,
   Req,
@@ -8,7 +11,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
@@ -47,5 +50,28 @@ export class PaymentsController {
     const ip = req.ip || req.socket?.remoteAddress;
     const userAgent = req.headers['user-agent'];
     return this.paymentsService.correctPayment(id, body, user.id, ip, userAgent);
+  }
+
+  @Get(':id/receipt')
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.COLLECTOR)
+  @ApiOperation({
+    summary: 'Print-friendly thermal receipt view',
+    description:
+      'Provides formatted physical receipt slip data (park name, walker name, pass no, receipt no, gate, amount, validity dates, collector) for small thermal printers. Never displays Aadhaar.',
+  })
+  @ApiResponse({ status: 200, description: 'Receipt data retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Payment not found' })
+  async getReceipt(
+    @Param('id') id: string,
+    @Query('format') format: string | undefined,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const receipt = await this.paymentsService.getPaymentReceipt(id);
+    if (format === 'html') {
+      const html = this.paymentsService.generateThermalReceiptHtml(receipt);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return html;
+    }
+    return receipt;
   }
 }

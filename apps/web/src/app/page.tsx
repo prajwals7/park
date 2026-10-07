@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { GATES, PASS_CONFIG, formatPaiseToInr } from '@wpd/shared';
 import { WalkerRegistrationForm } from '../components/walker-registration-form';
 import { WalkerProfileCard, WalkerProfileData } from '../components/walker-profile-card';
-import { ShieldCheck, UserPlus, Users, Sparkles } from 'lucide-react';
+import { AdminReportsView } from '../components/admin-reports-view';
+import { ShieldCheck, UserPlus, Users, Sparkles, BarChart3 } from 'lucide-react';
 
 const INITIAL_DEMO_WALKER: WalkerProfileData = {
   id: 'walker-demo-1',
@@ -22,7 +23,7 @@ const INITIAL_DEMO_WALKER: WalkerProfileData = {
 };
 
 export default function HomePage() {
-  const [activeTab, setActiveTab] = useState<'register' | 'profile'>('register');
+  const [activeTab, setActiveTab] = useState<'register' | 'profile' | 'reports'>('register');
   const [currentWalker, setCurrentWalker] = useState<WalkerProfileData>(INITIAL_DEMO_WALKER);
   const [activeRole, setActiveRole] = useState<'ADMIN' | 'COLLECTOR'>('ADMIN');
 
@@ -139,6 +140,18 @@ export default function HomePage() {
             <Users className="w-4 h-4" />
             Walker Profile & Reveal Flow
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('reports')}
+            className={`pb-3 px-4 text-sm font-semibold flex items-center gap-2 border-b-2 transition ${
+              activeTab === 'reports'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            Admin Reports & Collections
+          </button>
         </div>
 
         {/* View Content */}
@@ -161,9 +174,13 @@ export default function HomePage() {
               }}
             />
           </div>
-        ) : (
+        ) : activeTab === 'profile' ? (
           <div className="max-w-xl">
             <WalkerProfileCard walker={currentWalker} currentUserRole={activeRole} />
+          </div>
+        ) : (
+          <div className="max-w-5xl">
+            <AdminReportsView currentUserRole={activeRole} />
           </div>
         )}
       </div>

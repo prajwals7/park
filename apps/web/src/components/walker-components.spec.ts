@@ -51,4 +51,38 @@ describe('Web UI Aadhaar Formatting & Validation Integration', () => {
     expect(passNoSchema.safeParse('P1').success).toBe(false);
     expect(passNoSchema.safeParse('PASS-00101').success).toBe(true);
   });
+
+  it('sanitizes formula injection characters (=, +, -, @) for CSV/Excel export cells', async () => {
+    const { sanitizeForFormulaInjection } = await import('@wpd/shared');
+    expect(sanitizeForFormulaInjection('=1+2')).toBe("'=1+2");
+    expect(sanitizeForFormulaInjection('+SUM(A1:A10)')).toBe("'+SUM(A1:A10)");
+    expect(sanitizeForFormulaInjection('-cmd|calc')).toBe("'-cmd|calc");
+    expect(sanitizeForFormulaInjection('@dangerous')).toBe("'@dangerous");
+    expect(sanitizeForFormulaInjection('Safe Text')).toBe('Safe Text');
+  });
+
+  it('validates cash reconciliation and export query schemas', async () => {
+    const { recordCashReconciliationSchema, exportQuerySchema } = await import('@wpd/shared');
+
+    // Valid cash reconciliation
+    const validRec = recordCashReconciliationSchema.safeParse({
+      date: '2026-10-07',
+      collectorId: 'col-1',
+      handedOverPaise: 20000,
+      notes: 'Balanced',
+    });
+    expect(validRec.success).toBe(true);
+
+    // Negative handed over paise is rejected
+    const invalidRec = recordCashReconciliationSchema.safeParse({
+      date: '2026-10-07',
+      collectorId: 'col-1',
+      handedOverPaise: -500,
+    });
+    expect(invalidRec.success).toBe(false);
+
+    // Export query defaults to CSV
+    const exportResult = exportQuerySchema.parse({});
+    expect(exportResult.format).toBe('csv');
+  });
 });

@@ -4,3 +4,4 @@ export * from './auth-schemas.js';
 export * from './walker-schemas.js';
 export * from './business-rules.js';
 export * from './verhoeff.js';
+export * from './report-schemas.js';
