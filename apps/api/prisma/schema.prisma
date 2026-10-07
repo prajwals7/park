@@ -85,8 +85,10 @@ model Walker {
   name          String
   phone         String
   gateId        String
-  aadhaarLast4  String?
-  notes         String?
+  aadhaarLast4        String?
+  aadhaarEncrypted    String?      // AES-256-GCM ciphertext + nonce + keyVersion
+  aadhaarHash         String?      // Blind HMAC-SHA256 for duplicate checking
+  notes               String?
   consentAt     DateTime?
   deletedAt     DateTime?
   deletedById   String?
@@ -105,6 +107,7 @@ model Walker {
 
   @@index([phone])
   @@index([passNo])
+  @@index([aadhaarHash])
   @@index([deletedAt])
   @@map("walkers")
 }

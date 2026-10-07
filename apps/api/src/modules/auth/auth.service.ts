@@ -11,7 +11,7 @@ import { AuditService } from '../audit/audit.service.js';
 import { CryptoUtil } from '../../common/utils/crypto.util.js';
 import { env } from '../../common/env.js';
 import { Role, UserStatus } from '@prisma/client';
-import { authenticator } from 'otplib';
+import { verifySync, generateSecret, generateURI } from 'otplib';
 import {
   LoginInput,
   VerifyTotpInput,
@@ -229,7 +229,7 @@ export class AuthService {
 
     // Check TOTP code against totpSecret
     if (user.totpSecret) {
-      isValid = authenticator.check(input.code, user.totpSecret);
+      isValid = verifySync({ token: input.code, secret: user.totpSecret }).valid;
     }
 
     // Check Backup Codes if TOTP failed or if user needs initial setup
@@ -530,8 +530,8 @@ export class AuthService {
     if (!user)
       throw new UnauthorizedException({ code: 'USER_NOT_FOUND', message: 'User not found' });
 
-    const secret = authenticator.generateSecret();
-    const otpauthUrl = authenticator.keyuri(user.email, 'Walker Pass Desk', secret);
+    const secret = generateSecret();
+    const otpauthUrl = generateURI({ label: user.email, issuer: 'Walker Pass Desk', secret });
     const backupCodes = CryptoUtil.generateBackupCodes(8);
 
     // Store secret and hashed backup codes

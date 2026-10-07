@@ -9,6 +9,7 @@ import {
 import { Response, Request } from 'express';
 import { ZodError } from 'zod';
 import { Prisma } from '@prisma/client';
+import { AadhaarCryptoUtil } from '../utils/aadhaar-crypto.util.js';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -62,9 +63,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
       this.logger.warn(`[${requestId}] Prisma Error: ${exception.code} - ${exception.message}`);
     } else if (exception instanceof Error) {
+      const sanitizedMessage = AadhaarCryptoUtil.redact(exception.message);
       this.logger.error(
-        `[${requestId}] Unhandled Server Error: ${exception.message}`,
-        exception.stack,
+        `[${requestId}] Unhandled Server Error: ${sanitizedMessage}`,
+        exception.stack ? AadhaarCryptoUtil.redact(exception.stack) : undefined,
         `${request.method} ${request.url}`,
       );
       code = 'INTERNAL_ERROR';
@@ -74,7 +76,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     response.status(status).json({
       code,
-      message,
+      message: AadhaarCryptoUtil.redact(message),
       ...(details !== undefined ? { details } : {}),
     });
   }

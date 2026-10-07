@@ -32,6 +32,8 @@ import {
   SoftDeleteWalkerInput,
   renewWalkerPassSchema,
   RenewWalkerPassInput,
+  revealAadhaarSchema,
+  RevealAadhaarInput,
 } from '@wpd/shared';
 
 @ApiTags('Walkers')
@@ -169,5 +171,28 @@ export class WalkersController {
     const userAgent = req?.headers['user-agent'];
 
     return this.walkersService.renewWalkerPass(id, input, user.id, idempotencyKey, ip, userAgent);
+  }
+
+  // 8. Admin-only Reveal Aadhaar Number
+  @Post(':id/reveal-aadhaar')
+  @UseGuards(RolesGuard)
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Admin-only: reveal full 12-digit Aadhaar number with password or 2FA re-auth (audited, 30s validity)',
+  })
+  @ApiResponse({ status: 200, description: 'Aadhaar revealed with 30s expiry' })
+  @ApiResponse({ status: 403, description: 'Forbidden: Collector role or re-auth failure' })
+  async revealAadhaar(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(revealAadhaarSchema)) input: RevealAadhaarInput,
+    @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
+  ) {
+    const ip = req.ip || req.socket.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+
+    return this.walkersService.revealAadhaar(id, user, input, ip, userAgent);
   }
 }

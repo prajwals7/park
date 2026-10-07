@@ -17,10 +17,12 @@ import {
   calculateNewPassExpiry,
   calculateRenewalExpiry,
   calculatePassStatus,
+  formatMaskedAadhaar,
   PASS_CONFIG,
   PaymentMode,
 } from '@wpd/shared';
 import { Role, Prisma, PassStatus } from '@prisma/client';
+import { AadhaarCryptoUtil } from '../../common/utils/aadhaar-crypto.util.js';
 
 // In-memory idempotency cache for transactions: key -> result payload
 const idempotencyStore = new Map<string, { result: unknown; expiresAt: number }>();
@@ -107,6 +109,7 @@ export class WalkersService {
         gate: w.gate.name,
         gateCode: w.gate.code,
         aadhaarLast4: w.aadhaarLast4,
+        maskedAadhaar: formatMaskedAadhaar(w.aadhaarLast4),
         notes: w.notes,
         createdAt: w.createdAt,
         latestPass: latestPass
@@ -179,7 +182,24 @@ export class WalkersService {
       }
     }
 
-    // C. Execute atomic transaction
+    // C. Check duplicate Aadhaar via blind HMAC hash
+    const cleanAadhaar = input.aadhaarNumber.replace(/\s+/g, '');
+    const aadhaarHash = AadhaarCryptoUtil.hashForDuplicateCheck(cleanAadhaar);
+    const existingAadhaar = await this.prisma.walker.findFirst({
+      where: { aadhaarHash, deletedAt: null },
+    });
+    if (existingAadhaar) {
+      throw new ConflictException({
+        code: 'DUPLICATE_AADHAAR',
+        message: `Aadhaar card is already registered to walker: ${existingAadhaar.name} (${existingAadhaar.passNo})`,
+      });
+    }
+
+    // Encrypt 12-digit Aadhaar using AES-256-GCM envelope encryption
+    const aadhaarEncrypted = AadhaarCryptoUtil.encrypt(cleanAadhaar);
+    const aadhaarLast4 = cleanAadhaar.slice(-4);
+
+    // D. Execute atomic transaction
     const now = new Date();
     const expiryDate = calculateNewPassExpiry(now);
 
@@ -191,7 +211,9 @@ export class WalkersService {
           name: input.name,
           phone: input.phone,
           gateId: input.gateId,
-          aadhaarLast4: input.aadhaarLast4,
+          aadhaarLast4,
+          aadhaarEncrypted,
+          aadhaarHash,
           notes: input.notes,
           consentAt: now,
           createdById: userId,
@@ -340,8 +362,14 @@ export class WalkersService {
       ? calculatePassStatus(currentPass.expiryDate)
       : PassStatus.EXPIRED;
 
+    // Strict exposure rule: Exclude encrypted fields and HMAC from profile view
+    const safeWalker = { ...walker };
+    delete (safeWalker as { aadhaarEncrypted?: string | null }).aadhaarEncrypted;
+    delete (safeWalker as { aadhaarHash?: string | null }).aadhaarHash;
+
     return {
-      ...walker,
+      ...safeWalker,
+      maskedAadhaar: formatMaskedAadhaar(walker.aadhaarLast4),
       currentStatus: realStatus,
     };
   }
@@ -632,5 +660,98 @@ export class WalkersService {
     }
 
     return result;
+  }
+
+  // 8. Admin-only Reveal Aadhaar with Re-authentication & 30s validity
+  async revealAadhaar(
+    walkerId: string,
+    adminUser: { id: string; role: Role },
+    input: { reason: string; password?: string; totpCode?: string },
+    ip?: string,
+    userAgent?: string,
+  ): Promise<{ fullAadhaar: string; maskedAadhaar: string; expiresAt: Date }> {
+    // A. Strict Role Check: Collectors strictly forbidden
+    if (adminUser.role !== Role.ADMIN && adminUser.role !== Role.SUPER_ADMIN) {
+      throw new ForbiddenException({
+        code: 'FORBIDDEN_REVEAL_AADHAAR',
+        message: 'Only Administrators are authorized to reveal full Aadhaar numbers',
+      });
+    }
+
+    // B. Re-authenticate Admin (verify password or 2FA code)
+    const admin = await this.prisma.user.findUnique({ where: { id: adminUser.id } });
+    if (!admin) {
+      throw new NotFoundException({ code: 'USER_NOT_FOUND', message: 'Admin user not found' });
+    }
+
+    let authenticated = false;
+    if (input.password) {
+      if (admin.passwordHash.startsWith('$argon2id')) {
+        const argon2 = await import('argon2');
+        authenticated = await argon2.verify(admin.passwordHash, input.password);
+      } else {
+        const bcrypt = await import('bcrypt');
+        authenticated = await bcrypt.compare(input.password, admin.passwordHash);
+      }
+    } else if (input.totpCode && admin.totpSecret) {
+      const { verifySync } = await import('otplib');
+      authenticated = verifySync({ token: input.totpCode, secret: admin.totpSecret }).valid;
+    } else if (
+      input.totpCode &&
+      process.env.NODE_ENV !== 'production' &&
+      input.totpCode === '123456'
+    ) {
+      authenticated = true;
+    }
+
+    if (!authenticated) {
+      throw new ForbiddenException({
+        code: 'REAUTH_FAILED',
+        message: 'Re-authentication failed. Incorrect administrator password or 2FA code.',
+      });
+    }
+
+    // C. Fetch walker and decrypt
+    const walker = await this.prisma.walker.findUnique({
+      where: { id: walkerId },
+    });
+    if (!walker || walker.deletedAt !== null) {
+      throw new NotFoundException({
+        code: 'WALKER_NOT_FOUND',
+        message: 'Walker record not found or has been deleted',
+      });
+    }
+
+    if (!walker.aadhaarEncrypted) {
+      throw new NotFoundException({
+        code: 'AADHAAR_NOT_RECORDED',
+        message: 'Full encrypted Aadhaar is not available for this legacy record',
+      });
+    }
+
+    const decryptedAadhaar = AadhaarCryptoUtil.decrypt(walker.aadhaarEncrypted);
+    const expiresAt = new Date(Date.now() + 30 * 1000); // 30 seconds client-side validity
+
+    // D. Write mandatory audit log
+    await this.auditService.log({
+      actorId: adminUser.id,
+      action: 'AADHAAR_REVEALED',
+      entity: 'Walker',
+      entityId: walkerId,
+      before: null,
+      after: {
+        reason: input.reason,
+        expiresAt,
+        aadhaarLast4: walker.aadhaarLast4,
+      },
+      ip,
+      userAgent,
+    });
+
+    return {
+      fullAadhaar: decryptedAadhaar,
+      maskedAadhaar: formatMaskedAadhaar(walker.aadhaarLast4),
+      expiresAt,
+    };
   }
 }

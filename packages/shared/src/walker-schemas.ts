@@ -1,6 +1,28 @@
 import { z } from 'zod';
 import { PASS_STATUSES, PAYMENT_MODES } from './constants.js';
 import { phoneSchema } from './auth-schemas.js';
+import { VerhoeffUtil } from './verhoeff.js';
+
+// Strict 12-digit Indian Aadhaar validation:
+// 1. Exactly 12 digits (optional spaces permitted in input)
+// 2. Cannot start with 0 or 1
+// 3. Verhoeff checksum algorithm must validate
+export const aadhaarSchema = z
+  .string()
+  .trim()
+  .transform((val) => val.replace(/\s+/g, ''))
+  .refine((val) => /^[2-9]\d{11}$/.test(val), {
+    message: 'Aadhaar must be exactly 12 digits and cannot start with 0 or 1',
+  })
+  .refine((val) => VerhoeffUtil.validate(val), {
+    message: 'Invalid Aadhaar number: failed Verhoeff checksum validation',
+  });
+
+// Masked Aadhaar format helper: XXXX XXXX 1234
+export function formatMaskedAadhaar(last4?: string | null): string {
+  if (!last4 || last4.length !== 4) return 'XXXX XXXX XXXX';
+  return `XXXX XXXX ${last4}`;
+}
 
 // Query filters schema for listing walkers
 export const listWalkersQuerySchema = z.object({
@@ -23,11 +45,10 @@ export const createWalkerSchema = z
     name: z.string().trim().min(2).max(100),
     phone: phoneSchema,
     gateId: z.string().uuid(),
-    aadhaarLast4: z
-      .string()
-      .trim()
-      .regex(/^\d{4}$/, 'Must be exactly last 4 digits of Aadhaar')
-      .optional(),
+    aadhaarNumber: aadhaarSchema,
+    consentAgreed: z.literal(true, {
+      errorMap: () => ({ message: 'Walker consent for storing ID proof is mandatory' }),
+    }),
     notes: z.string().trim().max(500).optional(),
     aadhaarStorageKey: z.string().min(5),
     passportStorageKey: z.string().min(5),
@@ -48,6 +69,23 @@ export const createWalkerSchema = z
     },
   );
 export type CreateWalkerInput = z.infer<typeof createWalkerSchema>;
+
+// Admin reveal Aadhaar schema (requires re-auth password or 2FA code)
+export const revealAadhaarSchema = z
+  .object({
+    reason: z
+      .string()
+      .trim()
+      .min(5, 'Reason for accessing sensitive Aadhaar is mandatory')
+      .max(300),
+    password: z.string().min(1, 'Password confirmation is required').optional(),
+    totpCode: z.string().trim().length(6).optional(),
+  })
+  .refine((data) => Boolean(data.password || data.totpCode), {
+    message: 'Either current password or 2FA code is required to reveal Aadhaar',
+    path: ['password'],
+  });
+export type RevealAadhaarInput = z.infer<typeof revealAadhaarSchema>;
 
 // Update walker (Admin only)
 export const updateWalkerSchema = z.object({

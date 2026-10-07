@@ -60,9 +60,9 @@ describe('Authentication & Security Suite', () => {
     };
 
     authService = new AuthService(
-      mockPrisma as PrismaService,
-      mockJwtService as JwtService,
-      mockAuditService as AuditService,
+      mockPrisma as unknown as PrismaService,
+      mockJwtService as unknown as JwtService,
+      mockAuditService as unknown as AuditService,
     );
   });
 

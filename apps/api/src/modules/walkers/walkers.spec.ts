@@ -128,6 +128,8 @@ describe('Walkers & Pass Management Suite', () => {
             name: 'New Walker',
             phone: '9845012345',
             gateId: '11111111-1111-1111-1111-111111111111',
+            aadhaarNumber: '367598324510',
+            consentAgreed: true,
             aadhaarStorageKey: 'docs/aadhaar.jpg',
             passportStorageKey: 'docs/photo.jpg',
             paymentMode: 'CASH',
@@ -155,6 +157,8 @@ describe('Walkers & Pass Management Suite', () => {
             name: 'Duplicate Phone Person',
             phone: '9845012345',
             gateId: '11111111-1111-1111-1111-111111111111',
+            aadhaarNumber: '367598324510',
+            consentAgreed: true,
             aadhaarStorageKey: 'docs/aadhaar.jpg',
             passportStorageKey: 'docs/photo.jpg',
             paymentMode: 'CASH',
@@ -197,6 +201,8 @@ describe('Walkers & Pass Management Suite', () => {
         name: 'Unique Person',
         phone: '9845099999',
         gateId: '11111111-1111-1111-1111-111111111111',
+        aadhaarNumber: '367598324510',
+        consentAgreed: true as const,
         aadhaarStorageKey: 'docs/aadhaar.jpg',
         passportStorageKey: 'docs/photo.jpg',
         paymentMode: 'UPI' as const,
@@ -247,7 +253,7 @@ describe('Walkers & Pass Management Suite', () => {
         createdAt: new Date(),
       });
 
-      const res = await walkersService.renewWalkerPass(
+      const res = (await walkersService.renewWalkerPass(
         walkerId,
         {
           gateId: '11111111-1111-1111-1111-111111111111',
@@ -255,7 +261,7 @@ describe('Walkers & Pass Management Suite', () => {
           ticketStorageKey: 'docs/ticket_scan.jpg',
         },
         'collector-1',
-      );
+      )) as { walker: { id: string }; payment: { receiptNo: string } };
 
       expect(mockPrisma.$queryRaw).toHaveBeenCalled();
       expect(res.walker.id).toBe(walkerId);

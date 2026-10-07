@@ -24,6 +24,15 @@ export const envSchema = z.object({
     .string()
     .transform((v) => v === 'true')
     .default('false'),
+  AADHAAR_MASTER_KEY: z
+    .string()
+    .min(32, 'AADHAAR_MASTER_KEY must be at least 32 characters')
+    .default('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'),
+  AADHAAR_HMAC_SECRET: z
+    .string()
+    .min(32, 'AADHAAR_HMAC_SECRET must be at least 32 characters')
+    .default('fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210'),
+  AADHAAR_KEY_VERSION: z.string().default('v1'),
 });
 
 export type Env = z.infer<typeof envSchema>;
