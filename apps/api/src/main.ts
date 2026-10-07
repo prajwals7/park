@@ -32,11 +32,26 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
   });
 
-  // 5. Global Standard Error Response Filter
+  // Global prefix /api/v1
+  app.setGlobalPrefix('api/v1');
+
+  // Swagger OpenAPI documentation
+  const { DocumentBuilder, SwaggerModule } = await import('@nestjs/swagger');
+  const config = new DocumentBuilder()
+    .setTitle('Walker Pass Desk API')
+    .setDescription('Production-grade ticketing, registration, and pass renewal API')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document);
+
+  // Global Standard Error Response Filter
   app.useGlobalFilters(new AllExceptionsFilter());
 
   await app.listen(env.PORT);
   console.log(`🚀 Walker Pass Desk API listening on port ${env.PORT} (${env.NODE_ENV})`);
+  console.log(`📑 OpenAPI docs available at http://localhost:${env.PORT}/api/docs`);
 }
 
 bootstrap();
