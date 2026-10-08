@@ -10,6 +10,7 @@ import { Response, Request } from 'express';
 import { ZodError } from 'zod';
 import { Prisma } from '@prisma/client';
 import { AadhaarCryptoUtil } from '../utils/aadhaar-crypto.util.js';
+import { SentryMonitoring } from '../monitoring/sentry.util.js';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -69,6 +70,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
         exception.stack ? AadhaarCryptoUtil.redact(exception.stack) : undefined,
         `${request.method} ${request.url}`,
       );
+      // Capture in Sentry error monitoring
+      SentryMonitoring.captureException(exception, {
+        requestId,
+        method: request.method,
+        url: request.url,
+      });
       code = 'INTERNAL_ERROR';
       message = 'An unexpected server error occurred. Please retry later.';
       details = undefined;

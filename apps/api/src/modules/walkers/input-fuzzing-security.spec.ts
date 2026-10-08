@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   createWalkerSchema,
-  renewWalkerPassSchema,
   listWalkersQuerySchema,
   VerhoeffUtil,
   receiptNoSchema,
@@ -10,7 +9,6 @@ import {
 import { WalkersService } from './walkers.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
-import { AadhaarCryptoUtil } from '../../common/utils/aadhaar-crypto.util.js';
 
 describe('Security Hardening: Input Fuzzing, Injection & Mass-Assignment Suite', () => {
   let walkersService: WalkersService;
@@ -76,6 +74,8 @@ describe('Security Hardening: Input Fuzzing, Injection & Mass-Assignment Suite',
           page: 1,
           limit: 10,
           search: payload,
+          sortBy: 'expiryDate',
+          sortOrder: 'asc',
         });
 
         expect(prisma.walker.findMany).toHaveBeenCalledWith(
@@ -140,10 +140,10 @@ describe('Security Hardening: Input Fuzzing, Injection & Mass-Assignment Suite',
 
   describe('4. Null Bytes and Binary Control Characters', () => {
     it('rejects null bytes in receiptNo and phone', () => {
-      expect(receiptNoSchema.safeParse('RC-10\001').success).toBe(false);
+      expect(receiptNoSchema.safeParse('RC-10\x001').success).toBe(false);
       expect(createWalkerSchema.safeParse({
-        name: 'Test\0User',
-        phone: '98450\01234',
+        name: 'Test\x00User',
+        phone: '98450\x001234',
         gateId: '11111111-1111-1111-1111-111111111111',
         aadhaarNumber: '367598324511',
         consentAgreed: true,

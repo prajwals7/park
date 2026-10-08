@@ -48,7 +48,7 @@ describe('Security Hardening: Authorization Matrix Suite (Every Route x Every Ro
       }),
     };
 
-    vi.spyOn(reflector, 'getAllAndOverride').mockImplementation((key: string) => {
+    vi.spyOn(reflector, 'getAllAndOverride').mockImplementation((key: any) => {
       if (key === IS_PUBLIC_KEY) return isPublic;
       if (key === ROLES_KEY) {
         if (overrideRoles) return overrideRoles;
@@ -87,7 +87,7 @@ describe('Security Hardening: Authorization Matrix Suite (Every Route x Every Ro
       { name: 'PATCH /walkers/:id (updateWalker)', handler: WalkersController.prototype.updateWalker, allowed: [Role.ADMIN, Role.SUPER_ADMIN] },
       { name: 'DELETE /walkers/:id (softDeleteWalker)', handler: WalkersController.prototype.softDeleteWalker, allowed: [Role.ADMIN, Role.SUPER_ADMIN] },
       { name: 'POST /walkers/:id/restore (restoreWalker)', handler: WalkersController.prototype.restoreWalker, allowed: [Role.ADMIN, Role.SUPER_ADMIN] },
-      { name: 'POST /walkers/:id/renew (renewPass)', handler: WalkersController.prototype.renewPass, allowed: [Role.COLLECTOR, Role.ADMIN, Role.SUPER_ADMIN] },
+      { name: 'POST /walkers/:id/renew (renewWalkerPass)', handler: WalkersController.prototype.renewWalkerPass, allowed: [Role.COLLECTOR, Role.ADMIN, Role.SUPER_ADMIN] },
       { name: 'POST /walkers/:id/reveal-aadhaar', handler: WalkersController.prototype.revealAadhaar, allowed: [Role.ADMIN, Role.SUPER_ADMIN] },
       { name: 'GET /walkers/export (exportWalkers)', handler: WalkersController.prototype.exportWalkers, allowed: [Role.ADMIN, Role.SUPER_ADMIN] },
     ];
@@ -218,7 +218,7 @@ describe('Security Hardening: Authorization Matrix Suite (Every Route x Every Ro
 
       const collectorCtx = createMockContext(
         AuditController,
-        AuditController.prototype.listAuditLogs,
+        AuditController.prototype.getAuditLogs,
         { id: 'c1', email: 'c@p.com', name: 'C', role: Role.COLLECTOR },
         false,
         adminRoles,
@@ -227,7 +227,7 @@ describe('Security Hardening: Authorization Matrix Suite (Every Route x Every Ro
 
       const adminCtx = createMockContext(
         AuditController,
-        AuditController.prototype.listAuditLogs,
+        AuditController.prototype.getAuditLogs,
         { id: 'a1', email: 'a@p.com', name: 'A', role: Role.ADMIN },
         false,
         adminRoles,

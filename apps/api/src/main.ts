@@ -2,12 +2,16 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter.js';
 import { env } from './common/env.js';
+import { JsonLoggerService } from './common/logger/json-logger.service.js';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import express from 'express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const jsonLogger = new JsonLoggerService();
+  const app = await NestFactory.create(AppModule, {
+    logger: jsonLogger,
+  });
 
   // 1. HTTP Security headers
   app.use(
@@ -32,8 +36,10 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
   });
 
-  // Global prefix /api/v1
-  app.setGlobalPrefix('api/v1');
+  // Global prefix /api/v1 (exempting root health probes)
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['health', 'health/ready'],
+  });
 
   // Swagger OpenAPI documentation
   const { DocumentBuilder, SwaggerModule } = await import('@nestjs/swagger');

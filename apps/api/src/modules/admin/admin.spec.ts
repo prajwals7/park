@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AdminService } from './admin.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { CryptoUtil } from '../../common/utils/crypto.util.js';
 
 describe('Admin Dashboard, Staff & Settings Suite', () => {
   let adminService: AdminService;
