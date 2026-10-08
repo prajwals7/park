@@ -20,7 +20,7 @@ import { auditLogsQuerySchema, AuditLogsQueryInput } from '@wpd/shared';
 @ApiBearerAuth()
 @UseGuards(RolesGuard)
 @Roles(Role.ADMIN, Role.SUPER_ADMIN)
-@Controller('api/v1/audit-logs')
+@Controller('audit-logs')
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}
 

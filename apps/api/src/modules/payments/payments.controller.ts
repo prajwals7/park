@@ -24,7 +24,7 @@ import { correctPaymentSchema, CorrectPaymentInput } from '@wpd/shared';
 @ApiTags('Payments')
 @ApiBearerAuth()
 @UseGuards(RolesGuard)
-@Controller('api/v1/payments')
+@Controller('payments')
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 

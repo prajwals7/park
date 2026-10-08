@@ -37,7 +37,7 @@ import {
 @ApiBearerAuth()
 @UseGuards(RolesGuard)
 @Roles(Role.ADMIN, Role.SUPER_ADMIN)
-@Controller('api/v1/reports')
+@Controller('reports')
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 

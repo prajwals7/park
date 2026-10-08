@@ -44,7 +44,7 @@ import {
 @ApiBearerAuth()
 @UseGuards(RolesGuard)
 @Roles(Role.ADMIN, Role.SUPER_ADMIN)
-@Controller('api/v1/admin')
+@Controller('admin')
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
