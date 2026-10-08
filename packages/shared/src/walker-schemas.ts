@@ -37,12 +37,13 @@ export const receiptNoSchema = z
     message: 'Receipt number must contain only uppercase letters, numbers, and hyphens',
   });
 
-// Physical Pass Number Schema: 3 to 30 characters
+// Physical Pass Number Schema: 3 to 30 characters, alphanumeric and hyphens only
 export const passNoSchema = z
   .string({ required_error: 'Physical pass number is required' })
   .trim()
   .min(3, 'Pass number must be at least 3 characters')
-  .max(30, 'Pass number cannot exceed 30 characters');
+  .max(30, 'Pass number cannot exceed 30 characters')
+  .regex(/^[A-Za-z0-9-]+$/, 'Pass number must contain only letters, numbers, and hyphens');
 
 // Query filters schema for listing walkers
 export const listWalkersQuerySchema = z.object({

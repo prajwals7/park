@@ -22,6 +22,13 @@ export default defineConfig({
         isMobile: true,
       },
     },
+    {
+      name: 'Desktop (Admin Dashboard Viewport)',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1280, height: 800 },
+      },
+    },
   ],
   webServer: {
     command: 'pnpm dev',

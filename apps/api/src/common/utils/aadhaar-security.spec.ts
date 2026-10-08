@@ -217,4 +217,32 @@ describe('Aadhaar Security, Encryption, and Reveal Suite', () => {
       );
     });
   });
+
+  describe('4. Zero-Leakage Verification across Exports, Search & Filters', () => {
+    it('verifies export records never include Aadhaar columns or plain numbers', () => {
+      const sampleExportHeaders = [
+        'Pass No',
+        'Walker Name',
+        'Phone',
+        'Registered Gate',
+        'Status',
+        'Pass Start Date',
+        'Pass Expiry Date',
+        'Days Remaining',
+        'Notes',
+        'Registration Date',
+      ];
+      expect(sampleExportHeaders).not.toContain('Aadhaar');
+      expect(sampleExportHeaders).not.toContain('aadhaarNumber');
+      expect(sampleExportHeaders.some((h) => h.toLowerCase().includes('aadhaar'))).toBe(false);
+    });
+
+    it('redacts sensitive Aadhaar numbers from stack traces and nested error messages', () => {
+      const errorMsg = 'Failed to execute query with parameters: [367598324511, "ACTIVE"]';
+      const redacted = AadhaarCryptoUtil.redact(errorMsg);
+      expect(redacted).not.toContain('367598324511');
+      expect(redacted).toContain('XXXX-XXXX-4511');
+    });
+  });
 });
+

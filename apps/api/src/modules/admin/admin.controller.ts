@@ -138,8 +138,9 @@ export class AdminController {
     return this.adminService.listGates();
   }
 
-  // 8. Gates: Create Gate
+  // 8. Gates: Create Gate (SUPER_ADMIN only)
   @Post('gates')
+  @Roles(Role.SUPER_ADMIN)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create new entry gate' })
   @ApiResponse({ status: 201, description: 'Gate created' })
@@ -153,8 +154,9 @@ export class AdminController {
     return this.adminService.createGate(input, admin.id, ip, userAgent);
   }
 
-  // 9. Gates: Update Gate
+  // 9. Gates: Update Gate (SUPER_ADMIN only)
   @Patch('gates/:id')
+  @Roles(Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Update gate details and active status' })
   @ApiResponse({ status: 200, description: 'Gate updated' })
   async updateGate(
@@ -176,8 +178,9 @@ export class AdminController {
     return this.adminService.getSettings();
   }
 
-  // 11. Settings: Update Settings
+  // 11. Settings: Update Settings (SUPER_ADMIN only)
   @Patch('settings')
+  @Roles(Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Update system settings (tariff, validity, threshold)' })
   @ApiResponse({ status: 200, description: 'Settings updated' })
   async updateSettings(
