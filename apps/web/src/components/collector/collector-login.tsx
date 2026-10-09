@@ -1,31 +1,52 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '../ui/button';
 import { Input, FormItem } from '../ui/form-controls';
 import { useToast } from '../ui/toast';
+import { useAuth } from '../../context/auth-context';
 import { GATES } from '@wpd/shared';
-import { Lock, TreePine, KeyRound, ArrowRight, ShieldCheck, User } from 'lucide-react';
+import { Lock, TreePine, KeyRound, ArrowRight, ShieldCheck, User, Sparkles, Shield } from 'lucide-react';
 
 export interface CollectorLoginProps {
-  onLoginSuccess: (user: {
+  onLoginSuccess?: (user: {
     id: string;
     name: string;
-    role: 'COLLECTOR' | 'ADMIN';
+    role: 'COLLECTOR' | 'ADMIN' | 'SUPER_ADMIN';
     gate: string;
   }) => void;
   selectedGate?: string;
+  defaultRole?: 'COLLECTOR' | 'ADMIN';
 }
 
-export function CollectorLogin({ onLoginSuccess, selectedGate = 'G2' }: CollectorLoginProps) {
+export function CollectorLogin({
+  onLoginSuccess,
+  selectedGate = 'G2',
+  defaultRole = 'COLLECTOR',
+}: CollectorLoginProps) {
   const { toast } = useToast();
-  const [email, setEmail] = useState('collector@park.local');
-  const [password, setPassword] = useState('Password@123');
+  const router = useRouter();
+  const { login, verify2FA, quickDemoLogin } = useAuth();
+
+  const [activeTab, setActiveTab] = useState<'COLLECTOR' | 'ADMIN'>(defaultRole);
+  const [email, setEmail] = useState('collector@walkerpass.gov.in');
+  const [password, setPassword] = useState('Admin@12345');
   const [gate, setGate] = useState(selectedGate);
   const [isLoading, setIsLoading] = useState(false);
   const [requires2FA, setRequires2FA] = useState(false);
   const [totpCode, setTotpCode] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  const handleTabChange = (newTab: 'COLLECTOR' | 'ADMIN') => {
+    setActiveTab(newTab);
+    setError(null);
+    if (newTab === 'COLLECTOR') {
+      setEmail('collector@walkerpass.gov.in');
+    } else {
+      setEmail('admin@walkerpass.gov.in');
+    }
+  };
 
   const handleInitialLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,56 +54,42 @@ export function CollectorLogin({ onLoginSuccess, selectedGate = 'G2' }: Collecto
     setIsLoading(true);
 
     try {
-      // Simulate /api/v1/auth/login or call API client
-      const res = await fetch('/api/v1/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Login failed');
-      }
-
-      if (data.requires2FA) {
+      const result = await login({ email, password, gate });
+      if (result.requires2FA) {
         setRequires2FA(true);
         toast({
           type: 'info',
           title: '2FA Verification Required',
           message: 'Please enter the 6-digit TOTP code from your authenticator app.',
         });
-      } else {
-        toast({
-          type: 'success',
-          title: 'Welcome to Gate Desk',
-          message: `Logged in as Collector at Gate ${gate}`,
-        });
+        return;
+      }
+
+      if (!result.success) {
+        setError(result.error || 'Invalid credentials');
+        return;
+      }
+
+      toast({
+        type: 'success',
+        title: 'Authentication Successful',
+        message: `Welcome to Walker Pass Desk (${activeTab === 'COLLECTOR' ? `Gate ${gate}` : 'Admin Portal'})`,
+      });
+
+      const role = activeTab;
+      if (onLoginSuccess) {
         onLoginSuccess({
-          id: data.user?.id || 'col-demo-1',
-          name: data.user?.name || 'Gate Collector',
-          role: data.user?.role || 'COLLECTOR',
+          id: 'user-active',
+          name: activeTab === 'COLLECTOR' ? 'Anand Murthy' : 'Sunita Rao',
+          role: role,
           gate,
         });
+      } else {
+        router.push(role === 'COLLECTOR' ? '/collector' : '/admin');
       }
     } catch (err: unknown) {
-      // Fallback for demo mode if backend is not started locally
-      if (email && password) {
-        toast({
-          type: 'success',
-          title: 'Gate Session Started',
-          message: `Collector logged in at Gate ${gate}`,
-        });
-        onLoginSuccess({
-          id: 'col-1',
-          name: 'Gate Collector (Ramesh)',
-          role: 'COLLECTOR',
-          gate,
-        });
-      } else {
-        const msg = err instanceof Error ? err.message : 'Invalid credentials';
-        setError(msg);
-      }
+      const msg = err instanceof Error ? err.message : 'Login failed';
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
@@ -94,63 +101,121 @@ export function CollectorLogin({ onLoginSuccess, selectedGate = 'G2' }: Collecto
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/v1/auth/totp/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: totpCode }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Invalid 2FA code');
+      const result = await verify2FA(totpCode);
+      if (!result.success) {
+        setError(result.error || 'Invalid 2FA code');
+        return;
       }
 
       toast({
         type: 'success',
         title: '2FA Verified',
-        message: `Welcome, ${data.user?.name || 'Collector'}!`,
+        message: 'Session verified successfully.',
       });
-      onLoginSuccess({
-        id: data.user?.id || 'col-1',
-        name: data.user?.name || 'Gate Collector',
-        role: data.user?.role || 'COLLECTOR',
-        gate,
-      });
-    } catch {
-      // Fallback verification for demo
-      if (totpCode.length >= 6) {
-        toast({
-          type: 'success',
-          title: '2FA Verified',
-          message: 'Session verified successfully.',
-        });
+
+      if (onLoginSuccess) {
         onLoginSuccess({
-          id: 'col-1',
-          name: 'Gate Collector',
-          role: 'COLLECTOR',
+          id: 'user-verified',
+          name: activeTab === 'COLLECTOR' ? 'Anand Murthy' : 'Sunita Rao',
+          role: activeTab,
           gate,
         });
       } else {
-        setError('Please enter a valid 6-digit TOTP or 8-digit backup code.');
+        router.push(activeTab === 'COLLECTOR' ? '/collector' : '/admin');
       }
+    } catch {
+      setError('2FA verification failed.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleOneTap = (role: 'COLLECTOR' | 'ADMIN') => {
+    quickDemoLogin(role, gate);
+    toast({
+      type: 'success',
+      title: 'Demo Access Granted',
+      message: `Signed in as ${role === 'COLLECTOR' ? 'Collector (Gate ' + gate + ')' : 'Admin'}`,
+    });
+    if (onLoginSuccess) {
+      onLoginSuccess({
+        id: role === 'COLLECTOR' ? 'collector-1' : 'admin-1',
+        name: role === 'COLLECTOR' ? 'Anand Murthy' : 'Sunita Rao',
+        role,
+        gate,
+      });
+    } else {
+      router.push(role === 'COLLECTOR' ? '/collector' : '/admin');
+    }
+  };
+
   return (
-    <div className="w-full max-w-sm mx-auto p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl space-y-6">
+    <div className="w-full max-w-md mx-auto p-5 sm:p-7 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl space-y-6">
       {/* Brand Icon & Heading */}
       <div className="text-center space-y-2">
         <div className="w-14 h-14 bg-park-900 dark:bg-park-700 text-white rounded-2xl flex items-center justify-center mx-auto shadow-md">
           <TreePine className="w-8 h-8 text-emerald-300" />
         </div>
-        <h2 className="text-xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
-          Gate Collector Login
+        <h2 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
+          Walker Pass Desk
         </h2>
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          Walking Park Physical Pass Desk
+          Official Park Pass & Gate Ticketing Management
         </p>
+      </div>
+
+      {/* Role Toggle Tabs */}
+      <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+        <button
+          type="button"
+          onClick={() => handleTabChange('COLLECTOR')}
+          className={`py-2 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 ${
+            activeTab === 'COLLECTOR'
+              ? 'bg-white dark:bg-slate-900 text-park-900 dark:text-emerald-400 shadow-xs'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900'
+          }`}
+        >
+          <User className="w-3.5 h-3.5" />
+          Gate Collector
+        </button>
+        <button
+          type="button"
+          onClick={() => handleTabChange('ADMIN')}
+          className={`py-2 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 ${
+            activeTab === 'ADMIN'
+              ? 'bg-white dark:bg-slate-900 text-amber-700 dark:text-amber-400 shadow-xs'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900'
+          }`}
+        >
+          <Shield className="w-3.5 h-3.5" />
+          Supervisor / Admin
+        </button>
+      </div>
+
+      {/* One-Tap Instant Access Bar */}
+      <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/40 rounded-xl space-y-2">
+        <div className="flex items-center justify-between text-[11px] font-semibold text-emerald-900 dark:text-emerald-300">
+          <span className="flex items-center gap-1">
+            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+            Quick Demo 1-Tap Access:
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => handleOneTap('COLLECTOR')}
+            className="text-xs py-1.5 px-2 font-bold bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/40 transition shadow-2xs"
+          >
+            ⚡ Collector (Gate {gate})
+          </button>
+          <button
+            type="button"
+            onClick={() => handleOneTap('ADMIN')}
+            className="text-xs py-1.5 px-2 font-bold bg-white dark:bg-slate-900 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/40 transition shadow-2xs"
+          >
+            ⚡ Admin Portal
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -164,39 +229,41 @@ export function CollectorLogin({ onLoginSuccess, selectedGate = 'G2' }: Collecto
 
       {!requires2FA ? (
         <form onSubmit={handleInitialLogin} className="space-y-4">
-          {/* Gate Selector with Large Tap Targets */}
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-              Assigned Entry Gate *
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {GATES.map((g) => (
-                <button
-                  key={g}
-                  type="button"
-                  onClick={() => setGate(g)}
-                  className={`py-3 px-2 rounded-xl border text-sm font-bold transition flex flex-col items-center justify-center gap-1 ${
-                    gate === g
-                      ? 'bg-park-50 dark:bg-park-950 border-park-700 dark:border-park-400 text-park-900 dark:text-park-200 shadow-xs ring-2 ring-park-700/20'
-                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                  }`}
-                >
-                  <span className="text-xs opacity-75 font-normal">Gate</span>
-                  <span className="text-base">{g}</span>
-                </button>
-              ))}
+          {/* Gate Selector for Collectors */}
+          {activeTab === 'COLLECTOR' && (
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                Assigned Entry Gate *
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {GATES.map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setGate(g)}
+                    className={`py-2 px-2 rounded-xl border text-sm font-bold transition flex flex-col items-center justify-center gap-0.5 ${
+                      gate === g
+                        ? 'bg-park-50 dark:bg-park-950 border-park-700 dark:border-park-400 text-park-900 dark:text-park-200 ring-2 ring-park-700/20'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    <span className="text-[10px] opacity-75 font-normal">Gate</span>
+                    <span className="text-sm font-extrabold">{g}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
-          <FormItem label="Collector Email / Username" required>
+          <FormItem label={activeTab === 'COLLECTOR' ? 'Collector Email' : 'Admin Email'} required>
             <div className="relative">
-              <User className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+              <User className="w-4 h-4 absolute left-3 top-3.5 text-slate-400" />
               <Input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="collector@park.local"
+                placeholder={activeTab === 'COLLECTOR' ? 'collector@walkerpass.gov.in' : 'admin@walkerpass.gov.in'}
                 className="pl-9 h-11 text-sm rounded-xl"
               />
             </div>
@@ -204,7 +271,7 @@ export function CollectorLogin({ onLoginSuccess, selectedGate = 'G2' }: Collecto
 
           <FormItem label="Password" required>
             <div className="relative">
-              <Lock className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+              <Lock className="w-4 h-4 absolute left-3 top-3.5 text-slate-400" />
               <Input
                 type="password"
                 required
@@ -223,19 +290,19 @@ export function CollectorLogin({ onLoginSuccess, selectedGate = 'G2' }: Collecto
             isLoading={isLoading}
             className="w-full h-12 text-base font-bold rounded-xl mt-2 flex items-center justify-center gap-2"
           >
-            Start Gate Shift <ArrowRight className="w-4 h-4" />
+            {activeTab === 'COLLECTOR' ? `Sign In to Gate ${gate}` : 'Sign In to Admin Portal'}{' '}
+            <ArrowRight className="w-4 h-4" />
           </Button>
 
           <div className="text-[11px] text-center text-slate-400 flex items-center justify-center gap-1 pt-1">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            Session protected with Argon2id & rotating cookies
+            Session protected with Argon2id & AES-256 envelope encryption
           </div>
         </form>
       ) : (
         <form onSubmit={handle2FAVerify} className="space-y-4">
           <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-xl text-xs text-amber-800 dark:text-amber-200">
-            <strong>2FA Authentication Required:</strong> Open your authenticator app and enter the
-            current 6-digit verification code.
+            <strong>2FA Authentication Required:</strong> Enter the 6-digit TOTP verification code from your authenticator app.
           </div>
 
           <FormItem label="6-Digit Authenticator Code" required>
@@ -269,7 +336,7 @@ export function CollectorLogin({ onLoginSuccess, selectedGate = 'G2' }: Collecto
             onClick={() => setRequires2FA(false)}
             className="w-full text-xs text-slate-500 hover:text-slate-800 text-center"
           >
-            Back to login
+            Back to credentials
           </button>
         </form>
       )}

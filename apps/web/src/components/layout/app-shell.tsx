@@ -3,8 +3,9 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { UserPlus, Users, BarChart3, Moon, Sun, Palette, TreePine } from 'lucide-react';
+import { UserPlus, Users, BarChart3, Moon, Sun, Palette, TreePine, LogOut } from 'lucide-react';
 import { useTheme } from '../ui/theme-provider';
+import { useAuth } from '../../context/auth-context';
 
 export type UserRole = 'ADMIN' | 'COLLECTOR';
 
@@ -25,6 +26,7 @@ export function AppShell({
 }: AppShellProps) {
   const pathname = usePathname();
   const { resolvedTheme, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
 
   // Navigation Items
   const adminNavItems = [
@@ -143,30 +145,41 @@ export function AppShell({
 
         {/* Bottom User & Theme Footer */}
         <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-park-100 dark:bg-park-900 text-park-800 dark:text-park-200 flex items-center justify-center font-bold text-xs">
-              {activeRole === 'ADMIN' ? 'AD' : 'CL'}
+          <div className="flex items-center gap-2.5 overflow-hidden">
+            <div className="w-8 h-8 rounded-full bg-park-100 dark:bg-park-900 text-park-800 dark:text-park-200 flex items-center justify-center font-bold text-xs shrink-0">
+              {user?.name ? user.name.slice(0, 2).toUpperCase() : activeRole === 'ADMIN' ? 'AD' : 'CL'}
             </div>
-            <div className="text-xs">
-              <div className="font-bold text-slate-800 dark:text-slate-200 leading-none">
-                {activeRole === 'ADMIN' ? 'Supervisor' : 'Gate Collector'}
+            <div className="text-xs truncate">
+              <div className="font-bold text-slate-800 dark:text-slate-200 leading-none truncate">
+                {user?.name || (activeRole === 'ADMIN' ? 'Supervisor' : 'Gate Collector')}
               </div>
-              <div className="text-[10px] text-slate-400 mt-0.5">Shift Active</div>
+              <div className="text-[10px] text-slate-400 mt-0.5 truncate">{user?.email || 'Shift Active'}</div>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={toggleTheme}
-            aria-label="Toggle light/dark theme"
-            className="p-2 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-park-700"
-          >
-            {resolvedTheme === 'dark' ? (
-              <Sun className="w-4 h-4 text-amber-400" />
-            ) : (
-              <Moon className="w-4 h-4 text-slate-600" />
-            )}
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label="Toggle light/dark theme"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-park-700"
+            >
+              {resolvedTheme === 'dark' ? (
+                <Sun className="w-4 h-4 text-amber-400" />
+              ) : (
+                <Moon className="w-4 h-4 text-slate-600" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={logout}
+              aria-label="Log Out"
+              title="Log Out"
+              className="p-1.5 rounded-lg text-red-500 hover:text-red-700 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -179,14 +192,16 @@ export function AppShell({
             WP
           </div>
           <div>
-            <h1 className="text-xs font-bold leading-tight">Walker Pass Desk</h1>
+            <h1 className="text-xs font-bold leading-tight truncate max-w-[140px]">
+              {user?.name || 'Walker Pass Desk'}
+            </h1>
             <span className="text-[10px] text-park-700 dark:text-park-400 font-semibold">
-              Gate {activeGate} • {activeRole}
+              Gate {activeGate} • {user?.role || activeRole}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={toggleTheme}
@@ -205,6 +220,15 @@ export function AppShell({
             className="text-[10px] font-bold px-2 py-1 bg-slate-100 dark:bg-slate-800 border rounded-md"
           >
             {activeRole}
+          </button>
+          <button
+            type="button"
+            onClick={logout}
+            aria-label="Log Out"
+            title="Log Out"
+            className="p-1.5 text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40"
+          >
+            <LogOut className="w-4 h-4" />
           </button>
         </div>
       </header>
