@@ -74,113 +74,75 @@ export function AdminWalkerManagement({ apiClient }: AdminWalkerManagementProps)
   // History viewer modal state
   const [viewingHistoryWalker, setViewingHistoryWalker] = useState<WalkerRow | null>(null);
 
-  const DEFAULT_WALKERS: WalkerRow[] = [
-    {
-      id: 'w-1',
-      passNo: 'PASS-00101',
-      name: 'Ananya Sharma',
-      phone: '9845012345',
-      gateCode: 'G2',
-      status: 'ACTIVE',
-      expiryDate: '06 Nov 2026',
-      daysRemaining: 30,
-      aadhaarLast4: '4511',
-      maskedAadhaar: 'XXXX XXXX 4511',
-      notes: 'Morning regular walker',
-      createdAt: '07 Oct 2026',
-    },
-    {
-      id: 'w-2',
-      passNo: 'PASS-00102',
-      name: 'Rajesh Kulkarni',
-      phone: '9845023456',
-      gateCode: 'GS',
-      status: 'ACTIVE',
-      expiryDate: '01 Nov 2026',
-      daysRemaining: 25,
-      aadhaarLast4: '7789',
-      maskedAadhaar: 'XXXX XXXX 7789',
-      notes: 'Senior citizen pass',
-      createdAt: '02 Oct 2026',
-    },
-    {
-      id: 'w-3',
-      passNo: 'PASS-00103',
-      name: 'Meenakshi Iyer',
-      phone: '9845034567',
-      gateCode: 'G9',
-      status: 'EXPIRING',
-      expiryDate: '10 Oct 2026',
-      daysRemaining: 3,
-      aadhaarLast4: '9012',
-      maskedAadhaar: 'XXXX XXXX 9012',
-      notes: 'Evening walker',
-      createdAt: '10 Sep 2026',
-    },
-    {
-      id: 'w-4',
-      passNo: 'PASS-00104',
-      name: 'Vikram Seth',
-      phone: '9845045678',
-      gateCode: 'G2',
-      status: 'EXPIRED',
-      expiryDate: '01 Oct 2026',
-      daysRemaining: -6,
-      aadhaarLast4: '3456',
-      maskedAadhaar: 'XXXX XXXX 3456',
-      notes: '',
-      createdAt: '01 Sep 2026',
-    },
-  ];
-
   useEffect(() => {
     fetchWalkers();
   }, [selectedGate, selectedStatus]);
 
   const fetchWalkers = async () => {
-    if (!apiClient) {
-      setWalkers(DEFAULT_WALKERS);
-      return;
-    }
-
     setIsLoading(true);
     try {
-      const res = await apiClient.walkers.list({
-        gateId: selectedGate !== 'ALL' ? selectedGate : undefined,
-        status: selectedStatus !== 'ALL' ? (selectedStatus as PassStatus) : undefined,
-        limit: 100,
-      });
-
-      if (res && Array.isArray(res.data) && res.data.length > 0) {
-        const mapped: WalkerRow[] = res.data.map((raw) => {
-          const item = raw as Record<string, unknown>;
-          const gate = item.gate as { code?: string } | undefined;
-          const passes = item.passes as Array<{ status?: string; expiryDate?: string }> | undefined;
-          const latestPass = passes?.[0];
-          return {
-            id: String(item.id || ''),
-            passNo: String(item.passNo || ''),
-            name: String(item.name || ''),
-            phone: String(item.phone || ''),
-            gateCode: gate?.code || 'G2',
-            status: (latestPass?.status as 'ACTIVE' | 'EXPIRING' | 'EXPIRED') || 'ACTIVE',
-            expiryDate: latestPass?.expiryDate
-              ? new Date(latestPass.expiryDate).toLocaleDateString('en-GB')
-              : 'N/A',
-            daysRemaining: 30,
-            aadhaarLast4: (item.aadhaarLast4 as string) || undefined,
-            maskedAadhaar: `XXXX XXXX ${(item.aadhaarLast4 as string) || 'XXXX'}`,
-            notes: (item.notes as string) || undefined,
-            deletedAt: (item.deletedAt as string) || null,
-            createdAt: item.createdAt ? new Date(String(item.createdAt)).toLocaleDateString('en-GB') : '',
-          };
+      if (apiClient) {
+        const res = await apiClient.walkers.list({
+          gateId: selectedGate !== 'ALL' ? selectedGate : undefined,
+          status: selectedStatus !== 'ALL' ? (selectedStatus as PassStatus) : undefined,
+          limit: 100,
         });
+
+        if (res && Array.isArray(res.data)) {
+          const mapped: WalkerRow[] = res.data.map((raw) => {
+            const item = raw as Record<string, unknown>;
+            const gate = item.gate as { code?: string } | undefined;
+            const passes = item.passes as Array<{ status?: string; expiryDate?: string }> | undefined;
+            const latestPass = passes?.[0];
+            return {
+              id: String(item.id || ''),
+              passNo: String(item.passNo || ''),
+              name: String(item.name || ''),
+              phone: String(item.phone || ''),
+              gateCode: gate?.code || 'G2',
+              status: (latestPass?.status as 'ACTIVE' | 'EXPIRING' | 'EXPIRED') || 'ACTIVE',
+              expiryDate: latestPass?.expiryDate
+                ? new Date(latestPass.expiryDate).toLocaleDateString('en-GB')
+                : 'N/A',
+              daysRemaining: 30,
+              aadhaarLast4: (item.aadhaarLast4 as string) || undefined,
+              maskedAadhaar: `XXXX XXXX ${(item.aadhaarLast4 as string) || 'XXXX'}`,
+              notes: (item.notes as string) || undefined,
+              deletedAt: (item.deletedAt as string) || null,
+              createdAt: item.createdAt ? new Date(String(item.createdAt)).toLocaleDateString('en-GB') : '',
+            };
+          });
+          setWalkers(mapped);
+          return;
+        }
+      }
+
+      // Direct fetch fallback to API
+      const res = await fetch('/api/v1/walkers?limit=100');
+      if (res.ok) {
+        const json = await res.json();
+        const items = json.data || json.walkers || [];
+        const mapped: WalkerRow[] = items.map((raw: any) => ({
+          id: String(raw.id || ''),
+          passNo: String(raw.passNo || ''),
+          name: String(raw.name || ''),
+          phone: String(raw.phone || ''),
+          gateCode: raw.gateCode || raw.gate?.code || 'G2',
+          status: (raw.status as 'ACTIVE' | 'EXPIRING' | 'EXPIRED') || 'ACTIVE',
+          expiryDate: raw.expiryDate ? new Date(raw.expiryDate).toLocaleDateString('en-GB') : 'N/A',
+          daysRemaining: 30,
+          aadhaarLast4: raw.aadhaarLast4 || undefined,
+          maskedAadhaar: `XXXX XXXX ${raw.aadhaarLast4 || 'XXXX'}`,
+          notes: raw.notes || undefined,
+          deletedAt: raw.deletedAt || null,
+          createdAt: raw.createdAt ? new Date(raw.createdAt).toLocaleDateString('en-GB') : '',
+        }));
         setWalkers(mapped);
       } else {
-        setWalkers(DEFAULT_WALKERS);
+        setWalkers([]);
       }
     } catch {
-      setWalkers(DEFAULT_WALKERS);
+      setWalkers([]);
     } finally {
       setIsLoading(false);
     }

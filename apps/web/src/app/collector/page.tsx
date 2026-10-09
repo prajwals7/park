@@ -23,18 +23,7 @@ export default function CollectorPage() {
   }, [user]);
 
   const [collectorView, setCollectorView] = useState<'home' | 'register' | 'profile'>('home');
-  const [selectedCollectorWalker, setSelectedCollectorWalker] = useState<CollectorWalkerItem>({
-    id: 'w-1',
-    passNo: 'WP-1001',
-    name: 'Ananya Sharma',
-    phone: '9845012345',
-    gateId: 'G2',
-    status: 'ACTIVE',
-    expiryDate: '06 Nov 2026',
-    daysRemaining: 29,
-    latestReceiptNo: 'RC-000101',
-    latestPaymentMode: 'CASH',
-  });
+  const [selectedCollectorWalker, setSelectedCollectorWalker] = useState<CollectorWalkerItem | null>(null);
 
   if (isLoading) {
     return (
@@ -112,7 +101,7 @@ export default function CollectorPage() {
           />
         )}
 
-        {collectorView === 'profile' && (
+        {collectorView === 'profile' && selectedCollectorWalker && (
           <CollectorWalkerProfile
             walker={selectedCollectorWalker}
             onBack={() => setCollectorView('home')}

@@ -92,30 +92,15 @@ export function AppShell({
             <span className="text-slate-500 dark:text-slate-400 font-semibold uppercase text-[10px] tracking-wider">
               Role
             </span>
-            <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-0.5">
-              <button
-                type="button"
-                onClick={() => onRoleChange('ADMIN')}
-                className={`px-2 py-0.5 rounded text-[11px] font-bold transition ${
-                  activeRole === 'ADMIN'
-                    ? 'bg-park-900 dark:bg-park-700 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                }`}
-              >
-                ADMIN
-              </button>
-              <button
-                type="button"
-                onClick={() => onRoleChange('COLLECTOR')}
-                className={`px-2 py-0.5 rounded text-[11px] font-bold transition ${
-                  activeRole === 'COLLECTOR'
-                    ? 'bg-park-900 dark:bg-park-700 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                }`}
-              >
-                COLLECTOR
-              </button>
-            </div>
+            <span
+              className={`px-2 py-0.5 rounded text-[11px] font-extrabold uppercase tracking-wide ${
+                (user?.role || activeRole) === 'ADMIN' || (user?.role || activeRole) === 'SUPER_ADMIN'
+                  ? 'bg-amber-100 text-amber-900 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700'
+                  : 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+              }`}
+            >
+              {user?.role || activeRole}
+            </span>
           </div>
         </div>
 
@@ -214,13 +199,11 @@ export function AppShell({
               <Moon className="w-4 h-4" />
             )}
           </button>
-          <button
-            type="button"
-            onClick={() => onRoleChange(activeRole === 'ADMIN' ? 'COLLECTOR' : 'ADMIN')}
-            className="text-[10px] font-bold px-2 py-1 bg-slate-100 dark:bg-slate-800 border rounded-md"
+          <span
+            className="text-[10px] font-extrabold uppercase px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-md"
           >
-            {activeRole}
-          </button>
+            {user?.role || activeRole}
+          </span>
           <button
             type="button"
             onClick={logout}

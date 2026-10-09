@@ -1,16 +1,19 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { Button } from '../ui/button';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
+import { Input } from '../ui/form-controls';
 import {
   Search,
   UserPlus,
   Phone,
-  ChevronRight,
-  CheckCircle2,
   Clock,
+  CheckCircle2,
   AlertTriangle,
+  ChevronRight,
+  RefreshCw,
+  FolderOpen,
 } from 'lucide-react';
 
 export interface CollectorWalkerItem {
@@ -26,69 +29,6 @@ export interface CollectorWalkerItem {
   latestPaymentMode: 'CASH' | 'UPI';
 }
 
-const DEMO_COLLECTOR_WALKERS: CollectorWalkerItem[] = [
-  {
-    id: 'w-1',
-    passNo: 'WP-1001',
-    name: 'Ananya Sharma',
-    phone: '9845012345',
-    gateId: 'G2',
-    status: 'ACTIVE',
-    expiryDate: '06 Nov 2026',
-    daysRemaining: 29,
-    latestReceiptNo: 'RC-000101',
-    latestPaymentMode: 'CASH',
-  },
-  {
-    id: 'w-2',
-    passNo: 'WP-1002',
-    name: 'Rajesh Verma',
-    phone: '9876543210',
-    gateId: 'G2',
-    status: 'EXPIRING',
-    expiryDate: '10 Oct 2026',
-    daysRemaining: 3,
-    latestReceiptNo: 'RC-000102',
-    latestPaymentMode: 'UPI',
-  },
-  {
-    id: 'w-3',
-    passNo: 'WP-1003',
-    name: 'Kavitha Reddy',
-    phone: '9845112233',
-    gateId: 'GS',
-    status: 'ACTIVE',
-    expiryDate: '28 Oct 2026',
-    daysRemaining: 20,
-    latestReceiptNo: 'RC-000103',
-    latestPaymentMode: 'CASH',
-  },
-  {
-    id: 'w-4',
-    passNo: 'WP-1004',
-    name: 'Mohammed Farooq',
-    phone: '9741223344',
-    gateId: 'G9',
-    status: 'EXPIRED',
-    expiryDate: '02 Oct 2026',
-    daysRemaining: -5,
-    latestReceiptNo: 'RC-000088',
-    latestPaymentMode: 'CASH',
-  },
-  {
-    id: 'w-5',
-    passNo: 'WP-1005',
-    name: 'Siddharth Rao',
-    phone: '9900112233',
-    gateId: 'G2',
-    status: 'ACTIVE',
-    expiryDate: '04 Nov 2026',
-    daysRemaining: 27,
-    latestReceiptNo: 'RC-000105',
-    latestPaymentMode: 'UPI',
-  },
-];
-
 export interface CollectorHomeProps {
   currentGate: string;
   onSelectWalker: (walker: CollectorWalkerItem) => void;
@@ -100,19 +40,53 @@ export function CollectorHome({
   onSelectWalker,
   onStartRegistration,
 }: CollectorHomeProps) {
+  const [walkers, setWalkers] = useState<CollectorWalkerItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'EXPIRING' | 'EXPIRED'>(
-    'ALL',
-  );
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'EXPIRING' | 'EXPIRED'>('ALL');
+
+  const fetchLiveWalkers = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/v1/walkers?pageSize=100');
+      if (res.ok) {
+        const json = await res.json();
+        const items = json.data || json.walkers || [];
+        const mapped: CollectorWalkerItem[] = items.map((w: any) => ({
+          id: w.id,
+          passNo: w.currentPass?.passNo || w.passNo || 'N/A',
+          name: w.name,
+          phone: w.phone,
+          gateId: w.gateCode || w.gateId || currentGate,
+          status: w.currentPass?.status || w.status || 'ACTIVE',
+          expiryDate: w.currentPass?.validUntil ? new Date(w.currentPass.validUntil).toLocaleDateString('en-GB') : 'N/A',
+          daysRemaining: w.currentPass?.daysRemaining ?? 30,
+          latestReceiptNo: w.latestPayment?.receiptNo || 'N/A',
+          latestPaymentMode: w.latestPayment?.mode || 'CASH',
+        }));
+        setWalkers(mapped);
+      } else {
+        setWalkers([]);
+      }
+    } catch {
+      setWalkers([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLiveWalkers();
+  }, [currentGate]);
 
   // Metric counts
-  const activeCount = DEMO_COLLECTOR_WALKERS.filter((w) => w.status === 'ACTIVE').length;
-  const expiringCount = DEMO_COLLECTOR_WALKERS.filter((w) => w.status === 'EXPIRING').length;
-  const expiredCount = DEMO_COLLECTOR_WALKERS.filter((w) => w.status === 'EXPIRED').length;
+  const activeCount = walkers.filter((w) => w.status === 'ACTIVE').length;
+  const expiringCount = walkers.filter((w) => w.status === 'EXPIRING').length;
+  const expiredCount = walkers.filter((w) => w.status === 'EXPIRED').length;
 
   // Filtered walkers
   const filteredWalkers = useMemo(() => {
-    return DEMO_COLLECTOR_WALKERS.filter((w) => {
+    return walkers.filter((w) => {
       if (statusFilter !== 'ALL' && w.status !== statusFilter) {
         return false;
       }
@@ -126,11 +100,11 @@ export function CollectorHome({
         w.latestReceiptNo.toLowerCase().includes(q)
       );
     });
-  }, [searchQuery, statusFilter]);
+  }, [walkers, searchQuery, statusFilter]);
 
   return (
     <div className="space-y-5 max-w-xl mx-auto">
-      {/* Big Quick Register Hero Action (One-Handed Phone friendly) */}
+      {/* Big Quick Register Hero Action */}
       <div className="bg-gradient-to-br from-park-900 to-park-800 text-white p-5 rounded-2xl shadow-lg flex items-center justify-between gap-4">
         <div>
           <span className="text-[11px] font-bold text-emerald-300 uppercase tracking-wider block">
@@ -143,95 +117,96 @@ export function CollectorHome({
         <Button
           type="button"
           size="lg"
-          variant="accent"
+          variant="secondary"
+          className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-extrabold shadow-md shrink-0 h-12 px-5 text-sm gap-2"
           onClick={onStartRegistration}
-          className="h-13 px-5 rounded-xl font-extrabold text-sm shadow-md shrink-0 flex items-center gap-1.5"
         >
-          <UserPlus className="w-5 h-5" />+ New Pass
+          <UserPlus className="w-5 h-5 text-amber-900" />
+          <span>New Pass</span>
         </Button>
       </div>
 
-      {/* KPI Metric Badges (Filter toggles) */}
-      <div className="grid grid-cols-3 gap-2">
+      {/* KPI Status Badges */}
+      <div className="grid grid-cols-3 gap-2.5 text-center">
         <button
           type="button"
           onClick={() => setStatusFilter(statusFilter === 'ACTIVE' ? 'ALL' : 'ACTIVE')}
-          className={`p-3 rounded-xl border text-center transition ${
+          className={`p-3 rounded-xl border transition flex flex-col items-center justify-center gap-1 ${
             statusFilter === 'ACTIVE'
-              ? 'bg-emerald-50 dark:bg-emerald-950/80 border-emerald-500 ring-2 ring-emerald-500/20'
+              ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 ring-2 ring-emerald-500/20'
               : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
           }`}
         >
-          <div className="flex items-center justify-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-            <CheckCircle2 className="w-3.5 h-3.5" /> ACTIVE
+          <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+            <CheckCircle2 className="w-3.5 h-3.5" /> Active
           </div>
-          <div className="text-xl font-extrabold text-slate-900 dark:text-slate-100 mt-0.5">
+          <span className="text-xl font-black text-slate-900 dark:text-slate-100">
             {activeCount}
-          </div>
+          </span>
         </button>
 
         <button
           type="button"
           onClick={() => setStatusFilter(statusFilter === 'EXPIRING' ? 'ALL' : 'EXPIRING')}
-          className={`p-3 rounded-xl border text-center transition ${
+          className={`p-3 rounded-xl border transition flex flex-col items-center justify-center gap-1 ${
             statusFilter === 'EXPIRING'
-              ? 'bg-amber-50 dark:bg-amber-950/80 border-amber-500 ring-2 ring-amber-500/20'
+              ? 'bg-amber-50 dark:bg-amber-950/60 border-amber-500 ring-2 ring-amber-500/20'
               : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
           }`}
         >
-          <div className="flex items-center justify-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400">
-            <Clock className="w-3.5 h-3.5" /> EXPIRING
+          <div className="flex items-center gap-1 text-[11px] font-bold text-amber-700 dark:text-amber-400">
+            <Clock className="w-3.5 h-3.5" /> Expiring
           </div>
-          <div className="text-xl font-extrabold text-slate-900 dark:text-slate-100 mt-0.5">
+          <span className="text-xl font-black text-slate-900 dark:text-slate-100">
             {expiringCount}
-          </div>
+          </span>
         </button>
 
         <button
           type="button"
           onClick={() => setStatusFilter(statusFilter === 'EXPIRED' ? 'ALL' : 'EXPIRED')}
-          className={`p-3 rounded-xl border text-center transition ${
+          className={`p-3 rounded-xl border transition flex flex-col items-center justify-center gap-1 ${
             statusFilter === 'EXPIRED'
-              ? 'bg-rose-50 dark:bg-rose-950/80 border-rose-500 ring-2 ring-rose-500/20'
+              ? 'bg-rose-50 dark:bg-rose-950/60 border-rose-500 ring-2 ring-rose-500/20'
               : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
           }`}
         >
-          <div className="flex items-center justify-center gap-1 text-[11px] font-bold text-rose-600 dark:text-rose-400">
-            <AlertTriangle className="w-3.5 h-3.5" /> EXPIRED
+          <div className="flex items-center gap-1 text-[11px] font-bold text-rose-700 dark:text-rose-400">
+            <AlertTriangle className="w-3.5 h-3.5" /> Expired
           </div>
-          <div className="text-xl font-extrabold text-slate-900 dark:text-slate-100 mt-0.5">
+          <span className="text-xl font-black text-slate-900 dark:text-slate-100">
             {expiredCount}
-          </div>
+          </span>
         </button>
       </div>
 
-      {/* Big Search Input (Name, Phone, Pass No) */}
+      {/* Large Walker Search Input */}
       <div className="relative">
         <Search className="w-5 h-5 absolute left-3.5 top-3.5 text-slate-400" />
-        <input
+        <Input
           type="search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search Name, Phone, Pass No..."
-          className="w-full pl-11 pr-4 h-12 text-sm font-medium bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-park-700"
+          placeholder="Search by Name, Mobile, Pass No, or Receipt No..."
+          className="pl-11 h-12 text-sm bg-white dark:bg-slate-900 rounded-xl shadow-xs border-slate-200 dark:border-slate-800"
         />
       </div>
 
-      {/* Walkers List */}
+      {/* Walker List Header & Refresh */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs font-bold text-slate-500 px-1">
-          <span>RECORDED PASSES ({filteredWalkers.length})</span>
-          {statusFilter !== 'ALL' && (
-            <button
-              type="button"
-              onClick={() => setStatusFilter('ALL')}
-              className="text-park-700 dark:text-park-400 underline"
-            >
-              Clear Filter
-            </button>
-          )}
+          <span>Registered Pass Holders ({filteredWalkers.length})</span>
+          <button
+            type="button"
+            onClick={fetchLiveWalkers}
+            className="flex items-center gap-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-semibold"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
         </div>
 
+        {/* Walkers List Cards */}
         <div className="space-y-2">
           {filteredWalkers.map((walker) => (
             <div
@@ -279,14 +254,33 @@ export function CollectorHome({
             </div>
           ))}
 
-          {filteredWalkers.length === 0 && (
-            <div className="p-8 text-center bg-white dark:bg-slate-900 border rounded-xl space-y-2">
-              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                No walkers matching &quot;{searchQuery}&quot;
-              </p>
-              <p className="text-xs text-slate-400">
-                Try searching by 10-digit mobile number or pass ID.
-              </p>
+          {filteredWalkers.length === 0 && !isLoading && (
+            <div className="p-8 text-center bg-white dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl space-y-3">
+              <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
+                <FolderOpen className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  {searchQuery ? `No walkers matching "${searchQuery}"` : 'No passes issued yet'}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
+                  {searchQuery
+                    ? 'Check the mobile number or physical pass number and try again.'
+                    : 'The park registry is clean. Tap below to issue the first pass.'}
+                </p>
+              </div>
+              {!searchQuery && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="primary"
+                  className="gap-2 mx-auto"
+                  onClick={onStartRegistration}
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Issue First Pass
+                </Button>
+              )}
             </div>
           )}
         </div>

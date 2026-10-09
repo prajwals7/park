@@ -8,7 +8,7 @@ import {
   RegistrationTrendItem,
   formatPaiseToInr,
 } from '@wpd/shared';
-import { BarChart3, PieChart, TrendingUp, Layers } from 'lucide-react';
+import { BarChart3, PieChart, Layers, TrendingUp, Inbox } from 'lucide-react';
 
 interface AdminChartsProps {
   collectionsTrend?: CollectionTrendItem[];
@@ -38,68 +38,17 @@ export function AdminCharts({
     );
   }
 
-  // Fallback demo data if empty
-  const trendData: CollectionTrendItem[] =
-    collectionsTrend.length > 0
-      ? collectionsTrend
-      : [
-          { date: '01 Oct', totalPaise: 40000, cashPaise: 24000, upiPaise: 16000, count: 2 },
-          { date: '02 Oct', totalPaise: 60000, cashPaise: 38000, upiPaise: 22000, count: 3 },
-          { date: '03 Oct', totalPaise: 48000, cashPaise: 28000, upiPaise: 20000, count: 2 },
-          { date: '04 Oct', totalPaise: 82000, cashPaise: 42000, upiPaise: 40000, count: 4 },
-          { date: '05 Oct', totalPaise: 74000, cashPaise: 34000, upiPaise: 40000, count: 4 },
-          { date: '06 Oct', totalPaise: 96000, cashPaise: 56000, upiPaise: 40000, count: 5 },
-          { date: '07 Oct', totalPaise: 110000, cashPaise: 68000, upiPaise: 42000, count: 6 },
-        ];
-
-  const gatesData: GateComparisonItem[] =
-    gateComparison.length > 0
-      ? gateComparison
-      : [
-          {
-            gateCode: 'G2',
-            gateName: 'North Gate',
-            totalPaise: 240000,
-            paymentsCount: 12,
-            walkersCount: 65,
-          },
-          {
-            gateCode: 'GS',
-            gateName: 'South Gate',
-            totalPaise: 160000,
-            paymentsCount: 8,
-            walkersCount: 42,
-          },
-          {
-            gateCode: 'G9',
-            gateName: 'East Gate',
-            totalPaise: 100000,
-            paymentsCount: 5,
-            walkersCount: 23,
-          },
-        ];
-
+  const trendData: CollectionTrendItem[] = collectionsTrend;
+  const gatesData: GateComparisonItem[] = gateComparison;
   const splitData: PaymentModeSplit = paymentModeSplit ?? {
-    cashPaise: 310000,
-    cashCount: 15,
-    cashPct: 62,
-    upiPaise: 190000,
-    upiCount: 10,
-    upiPct: 38,
+    cashPaise: 0,
+    cashCount: 0,
+    cashPct: 0,
+    upiPaise: 0,
+    upiCount: 0,
+    upiPct: 0,
   };
-
-  const regData: RegistrationTrendItem[] =
-    registrationsOverTime.length > 0
-      ? registrationsOverTime
-      : [
-          { date: '01 Oct', registrations: 2, renewals: 1 },
-          { date: '02 Oct', registrations: 3, renewals: 2 },
-          { date: '03 Oct', registrations: 1, renewals: 3 },
-          { date: '04 Oct', registrations: 4, renewals: 2 },
-          { date: '05 Oct', registrations: 3, renewals: 4 },
-          { date: '06 Oct', registrations: 5, renewals: 3 },
-          { date: '07 Oct', registrations: 4, renewals: 5 },
-        ];
+  const regData: RegistrationTrendItem[] = registrationsOverTime;
 
   // Maximum value for collections trend scaling
   const maxTrendPaise = Math.max(...trendData.map((d) => d.totalPaise), 100000);
@@ -134,43 +83,50 @@ export function AdminCharts({
           </div>
 
           {/* Bar Chart Visualization */}
-          <div className="mt-6 h-48 flex items-end gap-2 pt-6 pb-2 border-b border-slate-100 dark:border-slate-800">
-            {trendData.map((item, idx) => {
-              const cashHeight = (item.cashPaise / maxTrendPaise) * 100;
-              const upiHeight = (item.upiPaise / maxTrendPaise) * 100;
-              const totalInr = formatPaiseToInr(item.totalPaise);
+          {trendData.length > 0 ? (
+            <div className="mt-6 h-48 flex items-end gap-2 pt-6 pb-2 border-b border-slate-100 dark:border-slate-800">
+              {trendData.map((item, idx) => {
+                const cashHeight = (item.cashPaise / maxTrendPaise) * 100;
+                const upiHeight = (item.upiPaise / maxTrendPaise) * 100;
+                const totalInr = formatPaiseToInr(item.totalPaise);
 
-              return (
-                <div key={idx} className="flex-1 flex flex-col items-center gap-1 h-full justify-end group relative">
-                  {/* Tooltip on hover */}
-                  <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition pointer-events-none z-10 bg-slate-900 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap shadow-md">
-                    {item.date}: {totalInr} ({item.count} passes)
-                  </div>
+                return (
+                  <div key={idx} className="flex-1 flex flex-col items-center gap-1 h-full justify-end group relative">
+                    <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition pointer-events-none z-10 bg-slate-900 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap shadow-md">
+                      {item.date}: {totalInr} ({item.count} passes)
+                    </div>
 
-                  <div className="w-full max-w-[28px] flex flex-col rounded-t overflow-hidden">
-                    <div
-                      style={{ height: `${Math.max(4, upiHeight * 1.4)}px` }}
-                      className="bg-indigo-500 hover:bg-indigo-600 transition"
-                      title={`UPI: ${formatPaiseToInr(item.upiPaise)}`}
-                    />
-                    <div
-                      style={{ height: `${Math.max(4, cashHeight * 1.4)}px` }}
-                      className="bg-emerald-600 hover:bg-emerald-700 transition"
-                      title={`Cash: ${formatPaiseToInr(item.cashPaise)}`}
-                    />
+                    <div className="w-full max-w-[28px] flex flex-col rounded-t overflow-hidden">
+                      <div
+                        style={{ height: `${Math.max(4, upiHeight * 1.4)}px` }}
+                        className="bg-indigo-500 hover:bg-indigo-600 transition"
+                        title={`UPI: ${formatPaiseToInr(item.upiPaise)}`}
+                      />
+                      <div
+                        style={{ height: `${Math.max(4, cashHeight * 1.4)}px` }}
+                        className="bg-emerald-600 hover:bg-emerald-700 transition"
+                        title={`Cash: ${formatPaiseToInr(item.cashPaise)}`}
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-400 truncate max-w-full">
+                      {item.date.slice(5) || item.date}
+                    </span>
                   </div>
-                  <span className="text-[10px] text-slate-400 truncate max-w-full">
-                    {item.date.slice(5) || item.date}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="h-48 flex flex-col items-center justify-center text-slate-400 text-xs space-y-1">
+              <Inbox className="w-7 h-7 stroke-1 text-slate-300 dark:text-slate-600" />
+              <span>No collections recorded for this period</span>
+            </div>
+          )}
         </div>
 
-        <div className="mt-3 flex items-center justify-between text-xs text-slate-500 pt-2">
-          <span>Total Recorded Range</span>
-          <span className="font-bold text-slate-900 dark:text-slate-100">
+        <div className="mt-4 pt-3 flex items-center justify-between text-xs text-slate-500">
+          <span>Formula: Cash + UPI daily totals</span>
+          <span className="font-semibold text-slate-700 dark:text-slate-300">
+            Total:{' '}
             {formatPaiseToInr(trendData.reduce((acc, curr) => acc + curr.totalPaise, 0))}
           </span>
         </div>
@@ -180,50 +136,53 @@ export function AdminCharts({
       <div className="p-5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400">
+            <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
               <Layers className="w-4 h-4" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                Gate Performance Comparison
+                Gate Performance
               </h3>
-              <p className="text-xs text-slate-500">Revenue & active passes per entrance gate</p>
+              <p className="text-xs text-slate-500">Total collection & passes per gate</p>
             </div>
           </div>
 
-          <div className="mt-6 space-y-4">
-            {gatesData.map((gate) => {
-              const widthPct = (gate.totalPaise / maxGatePaise) * 100;
-              return (
-                <div key={gate.gateCode} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-slate-800 dark:text-slate-200">
-                      Gate {gate.gateCode} ({gate.gateName})
-                    </span>
-                    <span className="font-extrabold text-slate-900 dark:text-slate-100">
-                      {formatPaiseToInr(gate.totalPaise)}
-                    </span>
+          {gatesData.length > 0 ? (
+            <div className="mt-6 space-y-3.5">
+              {gatesData.map((gate) => {
+                const pct = maxGatePaise > 0 ? Math.round((gate.totalPaise / maxGatePaise) * 100) : 0;
+                return (
+                  <div key={gate.gateCode} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">
+                        {gate.gateCode} • {gate.gateName}
+                      </span>
+                      <span className="font-bold text-slate-900 dark:text-slate-100">
+                        {formatPaiseToInr(gate.totalPaise)} ({gate.paymentsCount} passes)
+                      </span>
+                    </div>
+                    <div className="h-2.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        style={{ width: `${Math.max(4, pct)}%` }}
+                        className="h-full bg-indigo-600 rounded-full transition-all duration-300"
+                      />
+                    </div>
                   </div>
-                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-3 rounded-full overflow-hidden flex">
-                    <div
-                      style={{ width: `${Math.max(6, widthPct)}%` }}
-                      className="bg-park-600 rounded-full transition-all duration-500"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] text-slate-400">
-                    <span>{gate.paymentsCount} transactions</span>
-                    <span>{gate.walkersCount} active walkers</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="h-48 flex flex-col items-center justify-center text-slate-400 text-xs space-y-1">
+              <Inbox className="w-7 h-7 stroke-1 text-slate-300 dark:text-slate-600" />
+              <span>No gate collections recorded yet</span>
+            </div>
+          )}
         </div>
 
-        <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 flex justify-between">
-          <span>Active Operating Gates</span>
+        <div className="mt-4 pt-3 flex items-center justify-between text-xs text-slate-500">
+          <span>Active Gates: G2, GS, G9</span>
           <span className="font-semibold text-slate-700 dark:text-slate-300">
-            {gatesData.length} gates active
+            Pass Count: {gatesData.reduce((acc, curr) => acc + curr.paymentsCount, 0)}
           </span>
         </div>
       </div>
@@ -232,129 +191,142 @@ export function AdminCharts({
       <div className="p-5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
+            <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
               <PieChart className="w-4 h-4" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                Payment Mode Split
+                Cash vs UPI Split
               </h3>
-              <p className="text-xs text-slate-500">Physically recorded Cash vs UPI ratio</p>
+              <p className="text-xs text-slate-500">Gate payment mode distribution</p>
             </div>
           </div>
 
-          {/* Segmented split bar */}
-          <div className="mt-6 space-y-4">
-            <div className="h-4 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex">
-              <div
-                style={{ width: `${splitData.cashPct}%` }}
-                className="bg-emerald-600 transition-all duration-500"
-                title={`Cash: ${splitData.cashPct}%`}
-              />
-              <div
-                style={{ width: `${splitData.upiPct}%` }}
-                className="bg-indigo-600 transition-all duration-500"
-                title={`UPI: ${splitData.upiPct}%`}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              <div className="p-3.5 rounded-lg border border-emerald-100 dark:border-emerald-900/40 bg-emerald-50/50 dark:bg-emerald-950/20">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block" />
-                  Physical Cash ({splitData.cashPct}%)
-                </div>
-                <div className="text-lg font-extrabold text-slate-900 dark:text-slate-100 mt-1">
-                  {formatPaiseToInr(splitData.cashPaise)}
-                </div>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  {splitData.cashCount} payments collected
-                </p>
+          {splitData.cashCount > 0 || splitData.upiCount > 0 ? (
+            <div className="mt-6 flex flex-col gap-4">
+              <div className="h-4 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex">
+                <div
+                  style={{ width: `${splitData.cashPct}%` }}
+                  className="h-full bg-emerald-600 transition-all duration-300"
+                  title={`Cash: ${splitData.cashPct}%`}
+                />
+                <div
+                  style={{ width: `${splitData.upiPct}%` }}
+                  className="h-full bg-indigo-600 transition-all duration-300"
+                  title={`UPI: ${splitData.upiPct}%`}
+                />
               </div>
 
-              <div className="p-3.5 rounded-lg border border-indigo-100 dark:border-indigo-900/40 bg-indigo-50/50 dark:bg-indigo-950/20">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-800 dark:text-indigo-300">
-                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 inline-block" />
-                  UPI Reference ({splitData.upiPct}%)
+              <div className="grid grid-cols-2 gap-4 pt-2">
+                <div className="p-3.5 bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/60 rounded-xl space-y-1">
+                  <div className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 uppercase">
+                    Cash Payments
+                  </div>
+                  <div className="text-lg font-black text-slate-900 dark:text-slate-100">
+                    {formatPaiseToInr(splitData.cashPaise)}
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {splitData.cashCount} receipts ({splitData.cashPct}%)
+                  </div>
                 </div>
-                <div className="text-lg font-extrabold text-slate-900 dark:text-slate-100 mt-1">
-                  {formatPaiseToInr(splitData.upiPaise)}
+
+                <div className="p-3.5 bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 rounded-xl space-y-1">
+                  <div className="text-[11px] font-bold text-indigo-800 dark:text-indigo-300 uppercase">
+                    UPI Payments
+                  </div>
+                  <div className="text-lg font-black text-slate-900 dark:text-slate-100">
+                    {formatPaiseToInr(splitData.upiPaise)}
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {splitData.upiCount} receipts ({splitData.upiPct}%)
+                  </div>
                 </div>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  {splitData.upiCount} payments recorded
-                </p>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="h-48 flex flex-col items-center justify-center text-slate-400 text-xs space-y-1">
+              <Inbox className="w-7 h-7 stroke-1 text-slate-300 dark:text-slate-600" />
+              <span>No payments recorded</span>
+            </div>
+          )}
         </div>
 
-        <p className="text-[11px] text-slate-400 mt-4 italic">
-          Recorded for reconciliation & audit reporting only. No payment gateway involved.
-        </p>
+        <div className="mt-4 pt-3 flex items-center justify-between text-xs text-slate-500">
+          <span>Information & audit reporting only</span>
+          <span className="font-semibold text-slate-700 dark:text-slate-300">
+            Total Slips: {splitData.cashCount + splitData.upiCount}
+          </span>
+        </div>
       </div>
 
-      {/* 4. Registrations Over Time */}
+      {/* 4. Registrations Over Time (New vs Renewal) */}
       <div className="p-5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between">
         <div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400">
+              <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">
                 <TrendingUp className="w-4 h-4" />
               </div>
               <div>
                 <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  Registrations & Renewals
+                  Registrations vs Renewals
                 </h3>
-                <p className="text-xs text-slate-500">Volume trend over selected duration</p>
+                <p className="text-xs text-slate-500">New walker inflow vs recurring renewals</p>
               </div>
             </div>
             <div className="flex items-center gap-3 text-xs font-semibold">
-              <span className="flex items-center gap-1 text-sky-700 dark:text-sky-400">
-                <span className="w-2.5 h-2.5 rounded-xs bg-sky-500 inline-block" /> New
+              <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+                <span className="w-2.5 h-2.5 rounded-xs bg-emerald-600 inline-block" /> New
               </span>
-              <span className="flex items-center gap-1 text-violet-700 dark:text-violet-400">
-                <span className="w-2.5 h-2.5 rounded-xs bg-violet-500 inline-block" /> Renew
+              <span className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
+                <span className="w-2.5 h-2.5 rounded-xs bg-amber-500 inline-block" /> Renewal
               </span>
             </div>
           </div>
 
-          {/* Activity Bar Chart */}
-          <div className="mt-6 h-48 flex items-end gap-2 pt-6 pb-2 border-b border-slate-100 dark:border-slate-800">
-            {regData.map((item, idx) => {
-              const newHeight = (item.registrations / maxRegCount) * 100;
-              const renHeight = (item.renewals / maxRegCount) * 100;
+          {regData.length > 0 ? (
+            <div className="mt-6 h-48 flex items-end gap-2 pt-6 pb-2 border-b border-slate-100 dark:border-slate-800">
+              {regData.map((item, idx) => {
+                const newHeight = (item.registrations / maxRegCount) * 100;
+                const renewHeight = (item.renewals / maxRegCount) * 100;
+                const totalCount = item.registrations + item.renewals;
 
-              return (
-                <div key={idx} className="flex-1 flex flex-col items-center gap-1 h-full justify-end group relative">
-                  <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition pointer-events-none z-10 bg-slate-900 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap shadow-md">
-                    {item.date}: {item.registrations} New, {item.renewals} Renewal
-                  </div>
+                return (
+                  <div key={idx} className="flex-1 flex flex-col items-center gap-1 h-full justify-end group relative">
+                    <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition pointer-events-none z-10 bg-slate-900 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap shadow-md">
+                      {item.date}: {item.registrations} New, {item.renewals} Renewal
+                    </div>
 
-                  <div className="w-full max-w-[28px] flex items-end gap-1">
-                    <div
-                      style={{ height: `${Math.max(4, newHeight * 1.4)}px` }}
-                      className="flex-1 bg-sky-500 hover:bg-sky-600 rounded-t transition"
-                      title={`New: ${item.registrations}`}
-                    />
-                    <div
-                      style={{ height: `${Math.max(4, renHeight * 1.4)}px` }}
-                      className="flex-1 bg-violet-500 hover:bg-violet-600 rounded-t transition"
-                      title={`Renewals: ${item.renewals}`}
-                    />
+                    <div className="w-full max-w-[28px] flex flex-col rounded-t overflow-hidden">
+                      <div
+                        style={{ height: `${Math.max(4, renewHeight * 1.4)}px` }}
+                        className="bg-amber-500 hover:bg-amber-600 transition"
+                      />
+                      <div
+                        style={{ height: `${Math.max(4, newHeight * 1.4)}px` }}
+                        className="bg-emerald-600 hover:bg-emerald-700 transition"
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-400 truncate max-w-full">
+                      {item.date.slice(5) || item.date}
+                    </span>
                   </div>
-                  <span className="text-[10px] text-slate-400 truncate max-w-full">
-                    {item.date.slice(5) || item.date}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="h-48 flex flex-col items-center justify-center text-slate-400 text-xs space-y-1">
+              <Inbox className="w-7 h-7 stroke-1 text-slate-300 dark:text-slate-600" />
+              <span>No registrations or renewals recorded yet</span>
+            </div>
+          )}
         </div>
 
-        <div className="mt-3 flex items-center justify-between text-xs text-slate-500 pt-2">
-          <span>Total Pass Transactions</span>
-          <span className="font-bold text-slate-900 dark:text-slate-100">
-            {regData.reduce((acc, curr) => acc + curr.registrations + curr.renewals, 0)} passes
+        <div className="mt-4 pt-3 flex items-center justify-between text-xs text-slate-500">
+          <span>Inflow breakdown</span>
+          <span className="font-semibold text-slate-700 dark:text-slate-300">
+            Total:{' '}
+            {regData.reduce((acc, curr) => acc + curr.registrations + curr.renewals, 0)}
           </span>
         </div>
       </div>

@@ -33,18 +33,7 @@ export default function HomePage() {
 
   // Collector Mobile View State ('home' | 'register' | 'profile')
   const [collectorView, setCollectorView] = useState<'home' | 'register' | 'profile'>('home');
-  const [selectedCollectorWalker, setSelectedCollectorWalker] = useState<CollectorWalkerItem>({
-    id: 'w-1',
-    passNo: 'WP-1001',
-    name: 'Ananya Sharma',
-    phone: '9845012345',
-    gateId: 'G2',
-    status: 'ACTIVE',
-    expiryDate: '06 Nov 2026',
-    daysRemaining: 29,
-    latestReceiptNo: 'RC-000101',
-    latestPaymentMode: 'CASH',
-  });
+  const [selectedCollectorWalker, setSelectedCollectorWalker] = useState<CollectorWalkerItem | null>(null);
 
   // 1. Loading State
   if (isLoading) {
@@ -76,11 +65,13 @@ export default function HomePage() {
     );
   }
 
+  const userIsCollector = user.role === 'COLLECTOR';
+
   // 3. Authenticated: Render Appropriate Protected Page / Dashboard
   return (
     <AppShell
-      activeRole={activeRole}
-      onRoleChange={setActiveRole}
+      activeRole={userIsCollector ? 'COLLECTOR' : 'ADMIN'}
+      onRoleChange={() => {}}
       activeGate={activeGate}
       onGateChange={(g) => {
         setActiveGate(g);
@@ -93,7 +84,7 @@ export default function HomePage() {
       {/* ============================================================ */}
       {/* COLLECTOR EXPERIENCE (Mobile-First Gate Desk)                */}
       {/* ============================================================ */}
-      {activeRole === 'COLLECTOR' ? (
+      {userIsCollector ? (
         <div className="space-y-6">
           {collectorView === 'home' && (
             <CollectorHome
@@ -128,7 +119,7 @@ export default function HomePage() {
             />
           )}
 
-          {collectorView === 'profile' && (
+          {collectorView === 'profile' && selectedCollectorWalker && (
             <CollectorWalkerProfile
               walker={selectedCollectorWalker}
               onBack={() => setCollectorView('home')}

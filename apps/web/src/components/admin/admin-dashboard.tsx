@@ -47,16 +47,25 @@ export function AdminDashboard({ apiClient, currentUserRole = 'ADMIN' }: AdminDa
   }, [dateRange]);
 
   const fetchDashboardMetrics = async () => {
-    if (!apiClient) return;
-
     setIsLoading(true);
     try {
-      const res = await apiClient.admin.getDashboard({ range: dateRange });
-      if (res && res.kpis) {
-        setDashboardData(res);
+      if (apiClient) {
+        const res = await apiClient.admin.getDashboard({ range: dateRange });
+        if (res && res.kpis) {
+          setDashboardData(res);
+          return;
+        }
+      }
+
+      const res = await fetch(`/api/v1/admin/dashboard?range=${dateRange}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.kpis) {
+          setDashboardData(json);
+        }
       }
     } catch {
-      // Fallback gracefully to demo state inside components
+      // Graceful empty state
     } finally {
       setIsLoading(false);
     }

@@ -50,110 +50,41 @@ export function AdminExpiriesTable({ apiClient, onRenewSuccess }: AdminExpiriesT
   const [ticketPhotoUrl, setTicketPhotoUrl] = useState('');
   const [isSubmittingRenew, setIsSubmittingRenew] = useState(false);
 
-  // Demo initial rows if backend offline / not loaded
-  const DEFAULT_ROWS: ExpiryRow[] = [
-    {
-      id: 'w-101',
-      name: 'Sunil Kumar',
-      passNo: 'WP-1042',
-      phone: '9845012345',
-      startDate: '08 Sep 2026',
-      expiryDate: '08 Oct 2026',
-      daysRemaining: 1,
-      status: 'EXPIRING',
-      lastPaymentGate: 'G2',
-      lastReceiptNo: 'RC-000189',
-    },
-    {
-      id: 'w-102',
-      name: 'Meera Nambiar',
-      passNo: 'WP-1088',
-      phone: '9845023456',
-      startDate: '10 Sep 2026',
-      expiryDate: '10 Oct 2026',
-      daysRemaining: 3,
-      status: 'EXPIRING',
-      lastPaymentGate: 'GS',
-      lastReceiptNo: 'RC-000192',
-    },
-    {
-      id: 'w-103',
-      name: 'Arjun Das',
-      passNo: 'WP-1095',
-      phone: '9845034567',
-      startDate: '12 Sep 2026',
-      expiryDate: '12 Oct 2026',
-      daysRemaining: 5,
-      status: 'EXPIRING',
-      lastPaymentGate: 'G9',
-      lastReceiptNo: 'RC-000201',
-    },
-    {
-      id: 'w-104',
-      name: 'Kavita Menon',
-      passNo: 'WP-0980',
-      phone: '9845045678',
-      startDate: '01 Sep 2026',
-      expiryDate: '01 Oct 2026',
-      daysRemaining: -6,
-      status: 'EXPIRED',
-      lastPaymentGate: 'G2',
-      lastReceiptNo: 'RC-000120',
-    },
-    {
-      id: 'w-105',
-      name: 'Prakash Rao',
-      passNo: 'WP-0955',
-      phone: '9845056789',
-      startDate: '28 Aug 2026',
-      expiryDate: '27 Sep 2026',
-      daysRemaining: -10,
-      status: 'EXPIRED',
-      lastPaymentGate: 'GS',
-      lastReceiptNo: 'RC-000098',
-    },
-  ];
-
   useEffect(() => {
     fetchExpiries();
   }, [filterThreshold]);
 
   const fetchExpiries = async () => {
-    if (!apiClient) {
-      filterLocalData();
-      return;
-    }
-
     setIsLoading(true);
     try {
       const isExpired = filterThreshold === 'EXPIRED';
-      const res = await apiClient.reports.getExpiries({
-        status: isExpired ? 'EXPIRED' : 'EXPIRING',
-        threshold: isExpired ? undefined : filterThreshold,
-        page: 1,
-        limit: 100,
-      });
+      if (apiClient) {
+        const res = await apiClient.reports.getExpiries({
+          status: isExpired ? 'EXPIRED' : 'EXPIRING',
+          threshold: isExpired ? undefined : filterThreshold,
+          page: 1,
+          limit: 100,
+        });
 
-      if (res && Array.isArray(res.data) && res.data.length > 0) {
-        setData(res.data as unknown as ExpiryRow[]);
+        if (res && Array.isArray(res.data)) {
+          setData(res.data as unknown as ExpiryRow[]);
+          return;
+        }
+      }
+
+      // Direct fallback to API endpoint
+      const res = await fetch(`/api/v1/reports/expiries?status=${isExpired ? 'EXPIRED' : 'EXPIRING'}&threshold=${filterThreshold}`);
+      if (res.ok) {
+        const json = await res.json();
+        const items = json.data || json.expiries || [];
+        setData(items as ExpiryRow[]);
       } else {
-        filterLocalData();
+        setData([]);
       }
     } catch {
-      filterLocalData();
+      setData([]);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const filterLocalData = () => {
-    if (filterThreshold === 'EXPIRED') {
-      setData(DEFAULT_ROWS.filter((r) => r.status === 'EXPIRED'));
-    } else {
-      const maxDays = parseInt(filterThreshold, 10);
-      setData(
-        DEFAULT_ROWS.filter((r) => r.status === 'EXPIRING' && r.daysRemaining <= maxDays && r.daysRemaining >= 0),
-      );
     }
   };
 

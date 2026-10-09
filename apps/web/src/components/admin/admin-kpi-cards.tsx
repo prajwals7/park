@@ -35,25 +35,25 @@ export function AdminKpiCards({ kpis, isLoading }: AdminKpiCardsProps) {
     );
   }
 
-  // Fallback defaults if kpis not provided yet
-  const activeCount = kpis?.activeWalkers.count ?? 120;
-  const activeChange = kpis?.activeWalkers.changePct ?? 12;
+  // Default clean slate counts when data is empty
+  const activeCount = kpis?.activeWalkers.count ?? 0;
+  const activeChange = kpis?.activeWalkers.changePct ?? 0;
 
-  const expiringCount = kpis?.expiringSoon.count ?? 14;
-  const expiringChange = kpis?.expiringSoon.changePct ?? -5;
+  const expiringCount = kpis?.expiringSoon.count ?? 0;
+  const expiringChange = kpis?.expiringSoon.changePct ?? 0;
 
-  const expiredCount = kpis?.expiredPasses.count ?? 8;
+  const expiredCount = kpis?.expiredPasses.count ?? 0;
   const expiredChange = kpis?.expiredPasses.changePct ?? 0;
 
-  const todayPaise = kpis?.todayCollectionPaise.amount ?? 34000;
-  const todayChange = kpis?.todayCollectionPaise.changePct ?? 8;
+  const todayPaise = kpis?.todayCollectionPaise.amount ?? 0;
+  const todayChange = kpis?.todayCollectionPaise.changePct ?? 0;
 
-  const monthPaise = kpis?.monthCollectionPaise.amount ?? 482000;
-  const monthChange = kpis?.monthCollectionPaise.changePct ?? 15;
+  const monthPaise = kpis?.monthCollectionPaise.amount ?? 0;
+  const monthChange = kpis?.monthCollectionPaise.changePct ?? 0;
 
-  const newCount = kpis?.newVsRenewalThisMonth.newCount ?? 18;
-  const renewalCount = kpis?.newVsRenewalThisMonth.renewalCount ?? 12;
-  const newRatio = kpis?.newVsRenewalThisMonth.ratioPct ?? 60;
+  const newCount = kpis?.newVsRenewalThisMonth.newCount ?? 0;
+  const renewalCount = kpis?.newVsRenewalThisMonth.renewalCount ?? 0;
+  const newRatio = kpis?.newVsRenewalThisMonth.ratioPct ?? 0;
 
   const renderDelta = (pct: number) => {
     if (pct === 0) {
