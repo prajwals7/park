@@ -65,7 +65,7 @@ export const createWalkerSchema = z
     passNo: passNoSchema,
     name: z.string().trim().min(2).max(100),
     phone: phoneSchema,
-    gateId: z.string().uuid(),
+    gateId: z.string().trim().min(2),
     aadhaarNumber: aadhaarSchema,
     consentAgreed: z.literal(true, {
       errorMap: () => ({ message: 'Walker consent for storing ID proof is mandatory' }),
@@ -134,7 +134,7 @@ export type SoftDeleteWalkerInput = z.infer<typeof softDeleteWalkerSchema>;
 
 // Renew pass input
 export const renewWalkerPassSchema = z.object({
-  gateId: z.string().uuid(),
+  gateId: z.string().trim().min(2),
   paymentMode: z.enum(PAYMENT_MODES, {
     errorMap: () => ({ message: 'Payment mode is required and must be CASH or UPI' }),
   }),

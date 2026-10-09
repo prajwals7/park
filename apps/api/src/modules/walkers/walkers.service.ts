@@ -214,6 +214,22 @@ export class WalkersService {
       });
     }
 
+    // Resolve Gate ID (supports UUID, gate code e.g. 'G2', or active fallback)
+    let resolvedGateId = input.gateId;
+    if (this.prisma.gate?.findFirst) {
+      const gateRecord = await this.prisma.gate.findFirst({
+        where: {
+          OR: [{ id: input.gateId }, { code: input.gateId }],
+        },
+      });
+      if (gateRecord) {
+        resolvedGateId = gateRecord.id;
+      } else {
+        const defaultGate = await this.prisma.gate.findFirst({ where: { isActive: true } });
+        if (defaultGate) resolvedGateId = defaultGate.id;
+      }
+    }
+
     // E. Execute atomic transaction
     const now = new Date();
     const expiryDate = calculateNewPassExpiry(now);
@@ -225,7 +241,7 @@ export class WalkersService {
           passNo: input.passNo,
           name: input.name,
           phone: input.phone,
-          gateId: input.gateId,
+          gateId: resolvedGateId,
           aadhaarLast4,
           aadhaarEncrypted,
           aadhaarHash,
@@ -272,7 +288,7 @@ export class WalkersService {
         data: {
           walkerId: walker.id,
           passId: pass.id,
-          gateId: input.gateId,
+          gateId: resolvedGateId,
           collectedById: userId,
           amountPaise: PASS_CONFIG.PRICE_PAISE,
           mode: input.paymentMode as PaymentMode,
@@ -539,6 +555,22 @@ export class WalkersService {
 
     const now = new Date();
 
+    // Resolve Gate ID (supports UUID, gate code e.g. 'G2', or active fallback)
+    let resolvedGateId = input.gateId;
+    if (this.prisma.gate?.findFirst) {
+      const gateRecord = await this.prisma.gate.findFirst({
+        where: {
+          OR: [{ id: input.gateId }, { code: input.gateId }],
+        },
+      });
+      if (gateRecord) {
+        resolvedGateId = gateRecord.id;
+      } else {
+        const defaultGate = await this.prisma.gate.findFirst({ where: { isActive: true } });
+        if (defaultGate) resolvedGateId = defaultGate.id;
+      }
+    }
+
     const result = await this.prisma.$transaction(
       async (tx) => {
         // Concurrency lock: Select walker row FOR UPDATE to prevent race conditions
@@ -599,7 +631,7 @@ export class WalkersService {
           data: {
             walkerId,
             passId: newPass.id,
-            gateId: input.gateId,
+            gateId: resolvedGateId,
             collectedById: userId,
             amountPaise: PASS_CONFIG.PRICE_PAISE,
             mode: input.paymentMode as PaymentMode,

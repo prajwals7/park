@@ -6,6 +6,7 @@ import { Input, FormItem } from '../ui/form-controls';
 import { FileUpload } from '../ui/file-upload';
 import { useToast } from '../ui/toast';
 import { VerhoeffUtil, GATES, PASS_CONFIG } from '@wpd/shared';
+import { apiRequest } from '@/lib/api';
 import {
   CheckCircle2,
   AlertCircle,
@@ -216,7 +217,7 @@ export function CollectorRegistrationWizard({
         passNo: passNo.trim().toUpperCase(),
         name: name.trim(),
         phone: phone.trim(),
-        gateId: '11111111-1111-1111-1111-111111111111', // UUID
+        gateId: gateId || currentGate || 'G2',
         aadhaarNumber: rawAadhaar,
         consentAgreed: true,
         aadhaarStorageKey: 'documents/aadhaar_scan.jpg',
@@ -225,19 +226,13 @@ export function CollectorRegistrationWizard({
         receiptNo: receiptNo.trim().toUpperCase(),
       };
 
-      const res = await fetch('/api/v1/walkers', {
+      const data = await apiRequest('/walkers', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'x-idempotency-key': key,
         },
         body: JSON.stringify(payload),
       });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Registration failed');
-      }
 
       // Success
       localStorage.removeItem(DRAFT_KEY);

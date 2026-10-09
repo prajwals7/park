@@ -11,6 +11,11 @@ export interface AuthUser {
   gate: string;
 }
 
+interface PendingChallenge {
+  challengeToken: string;
+  user: AuthUser;
+}
+
 interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
@@ -18,7 +23,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (credentials: { email: string; password: string; gate?: string }) => Promise<{ success: boolean; error?: string; requires2FA?: boolean }>;
   verify2FA: (totpCode: string) => Promise<{ success: boolean; error?: string }>;
-  quickDemoLogin: (role: 'COLLECTOR' | 'ADMIN', gate?: string) => void;
+  quickDemoLogin: (role: 'COLLECTOR' | 'ADMIN', gate?: string) => Promise<void>;
   logout: () => void;
   setGate: (gate: string) => void;
 }
@@ -31,7 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [pendingUser, setPendingUser] = useState<{ user: AuthUser; token?: string } | null>(null);
+  const [pendingChallenge, setPendingChallenge] = useState<PendingChallenge | null>(null);
   const router = useRouter();
 
   // Restore session from localStorage on mount
@@ -76,111 +81,126 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const data = await res.json();
       if (!res.ok) {
-        // Fallback for offline/demo if API is unreachable or returns 401 with standard demo credentials
-        if (credentials.email.includes('collector') && credentials.password === 'Admin@12345') {
-          const demoUser: AuthUser = {
-            id: 'demo-collector',
-            name: 'Anand Murthy',
-            email: credentials.email,
-            role: 'COLLECTOR',
-            gate: selectedGate,
-          };
-          saveSession(demoUser);
-          return { success: true };
-        }
-        if (credentials.email.includes('admin') && credentials.password === 'Admin@12345') {
-          const demoUser: AuthUser = {
-            id: 'demo-admin',
-            name: 'Sunita Rao',
-            email: credentials.email,
-            role: 'ADMIN',
-            gate: selectedGate,
-          };
-          saveSession(demoUser);
-          return { success: true };
-        }
-        return { success: false, error: data.message || 'Invalid credentials' };
+        return { success: false, error: data.message || 'Invalid email or password' };
       }
 
-      if (data.requires2FA) {
-        setPendingUser({
+      // Check for 2FA / TOTP Challenge
+      if (data.requiresTotp || data.requires2FA) {
+        const challengeToken = data.challengeToken || data.tempToken;
+        const targetRole: 'ADMIN' | 'COLLECTOR' = credentials.email.toLowerCase().includes('collector') ? 'COLLECTOR' : 'ADMIN';
+        setPendingChallenge({
+          challengeToken,
           user: {
             id: data.user?.id || 'u-pending',
-            name: data.user?.name || 'Staff User',
+            name: data.user?.name || (targetRole === 'ADMIN' ? 'Sunita Rao' : 'Gate Collector'),
             email: credentials.email,
-            role: data.user?.role || 'COLLECTOR',
+            role: targetRole,
             gate: selectedGate,
           },
-          token: data.tempToken,
         });
         return { success: false, requires2FA: true };
       }
 
       const loggedUser: AuthUser = {
         id: data.user?.id || 'u-active',
-        name: data.user?.name || credentials.email.split('@')[0],
+        name: data.user?.name || (credentials.email.includes('collector') ? 'Anand Murthy' : 'Sunita Rao'),
         email: data.user?.email || credentials.email,
-        role: data.user?.role || 'COLLECTOR',
+        role: data.user?.role || (credentials.email.includes('collector') ? 'COLLECTOR' : 'ADMIN'),
         gate: selectedGate,
       };
 
       saveSession(loggedUser, data.accessToken || null);
       return { success: true };
-    } catch {
-      // Network or offline fallback for seeded accounts
-      if (credentials.password === 'Admin@12345') {
-        const isCollector = credentials.email.toLowerCase().includes('collector');
-        const fallbackUser: AuthUser = {
-          id: isCollector ? 'demo-collector' : 'demo-admin',
-          name: isCollector ? 'Anand Murthy (Collector)' : 'Sunita Rao (Admin)',
-          email: credentials.email,
-          role: isCollector ? 'COLLECTOR' : 'ADMIN',
-          gate: selectedGate,
-        };
-        saveSession(fallbackUser);
-        return { success: true };
-      }
-      return { success: false, error: 'Network error connecting to login service' };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Network connection failed' };
     }
   };
 
   const verify2FA = async (totpCode: string) => {
-    if (!pendingUser) {
+    if (!pendingChallenge) {
       return { success: false, error: 'No 2FA verification in progress' };
     }
     try {
       const res = await fetch('/api/v1/auth/verify-2fa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: totpCode, tempToken: pendingUser.token }),
+        body: JSON.stringify({ code: totpCode, challengeToken: pendingChallenge.challengeToken }),
       });
       const data = await res.json();
       if (!res.ok) {
         return { success: false, error: data.message || 'Invalid 2FA code' };
       }
-      saveSession(pendingUser.user, data.accessToken || null);
-      setPendingUser(null);
+      const confirmedUser: AuthUser = {
+        ...pendingChallenge.user,
+        id: data.user?.id || pendingChallenge.user.id,
+        name: data.user?.name || pendingChallenge.user.name,
+        role: data.user?.role || pendingChallenge.user.role,
+      };
+      saveSession(confirmedUser, data.accessToken || null);
+      setPendingChallenge(null);
       return { success: true };
-    } catch {
-      // offline dev bypass if code is 123456
-      if (totpCode === '123456') {
-        saveSession(pendingUser.user);
-        setPendingUser(null);
-        return { success: true };
-      }
-      return { success: false, error: '2FA verification failed' };
+    } catch (err: any) {
+      return { success: false, error: err.message || '2FA verification failed' };
     }
   };
 
-  const quickDemoLogin = (role: 'COLLECTOR' | 'ADMIN', gate: string = 'G2') => {
-    const demoUser: AuthUser = {
+  const quickDemoLogin = async (role: 'COLLECTOR' | 'ADMIN', gate: string = 'G2') => {
+    const email = role === 'COLLECTOR' ? 'collector@walkerpass.gov.in' : 'admin@walkerpass.gov.in';
+    const password = 'Admin@12345';
+
+    try {
+      const res = await fetch('/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.requiresTotp && data.challengeToken) {
+          // In development mode, verify with 123456 immediately
+          const vRes = await fetch('/api/v1/auth/verify-2fa', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: '123456', challengeToken: data.challengeToken }),
+          });
+          if (vRes.ok) {
+            const vData = await vRes.json();
+            const demoUser: AuthUser = {
+              id: vData.user?.id || 'admin-1',
+              name: vData.user?.name || 'Dr. Ramesh Kumar',
+              email,
+              role: 'ADMIN',
+              gate,
+            };
+            saveSession(demoUser, vData.accessToken);
+            return;
+          }
+        } else if (data.accessToken) {
+          const demoUser: AuthUser = {
+            id: data.user?.id || 'collector-1',
+            name: data.user?.name || 'Anand Murthy',
+            email,
+            role: 'COLLECTOR',
+            gate,
+          };
+          saveSession(demoUser, data.accessToken);
+          return;
+        }
+      }
+    } catch {
+      // offline fallback
+    }
+
+    // Fallback if backend unreachable
+    const fallbackUser: AuthUser = {
       id: role === 'COLLECTOR' ? 'collector-1' : 'admin-1',
       name: role === 'COLLECTOR' ? 'Anand Murthy' : 'Dr. Ramesh Kumar',
-      email: role === 'COLLECTOR' ? 'collector@walkerpass.gov.in' : 'admin@walkerpass.gov.in',
-      role: role,
-      gate: gate,
+      email,
+      role,
+      gate,
     };
-    saveSession(demoUser);
+    saveSession(fallbackUser, null);
   };
 
   const logout = () => {
@@ -192,7 +212,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setUser(null);
     setToken(null);
-    setPendingUser(null);
+    setPendingChallenge(null);
     router.push('/login');
   };
 

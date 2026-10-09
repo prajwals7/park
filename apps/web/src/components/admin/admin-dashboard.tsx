@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ApiClient, DashboardOverviewResponse } from '@wpd/shared';
+import { apiRequest } from '@/lib/api';
 import { AdminKpiCards } from './admin-kpi-cards';
 import { AdminCharts } from './admin-charts';
 import { AdminExpiriesTable } from './admin-expiries-table';
@@ -57,12 +58,9 @@ export function AdminDashboard({ apiClient, currentUserRole = 'ADMIN' }: AdminDa
         }
       }
 
-      const res = await fetch(`/api/v1/admin/dashboard?range=${dateRange}`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json && json.kpis) {
-          setDashboardData(json);
-        }
+      const data = await apiRequest<DashboardOverviewResponse>(`/admin/dashboard?range=${dateRange}`);
+      if (data && data.kpis) {
+        setDashboardData(data);
       }
     } catch {
       // Graceful empty state

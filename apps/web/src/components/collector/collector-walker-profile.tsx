@@ -9,6 +9,7 @@ import { Dialog } from '../ui/dialog';
 import { useToast } from '../ui/toast';
 import { CollectorWalkerItem } from './collector-home';
 import { PASS_CONFIG } from '@wpd/shared';
+import { apiRequest } from '@/lib/api';
 import {
   RefreshCw,
   Printer,
@@ -60,24 +61,18 @@ export function CollectorWalkerProfile({
     const idempotencyKey = crypto.randomUUID();
 
     try {
-      const res = await fetch(`/api/v1/walkers/${walker.id}/renew`, {
+      const data = await apiRequest(`/walkers/${walker.id}/renew`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'x-idempotency-key': idempotencyKey,
         },
         body: JSON.stringify({
-          gateId: '11111111-1111-1111-1111-111111111111',
+          gateId: 'G2',
           paymentMode,
           receiptNo: receiptNo.trim().toUpperCase(),
           ticketStorageKey: 'documents/renewal_ticket.jpg',
         }),
       });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Renewal failed');
-      }
 
       const successData = {
         receiptNo: receiptNo.trim().toUpperCase(),

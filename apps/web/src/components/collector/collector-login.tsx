@@ -130,22 +130,27 @@ export function CollectorLogin({
     }
   };
 
-  const handleOneTap = (role: 'COLLECTOR' | 'ADMIN') => {
-    quickDemoLogin(role, gate);
-    toast({
-      type: 'success',
-      title: 'Demo Access Granted',
-      message: `Signed in as ${role === 'COLLECTOR' ? 'Collector (Gate ' + gate + ')' : 'Admin'}`,
-    });
-    if (onLoginSuccess) {
-      onLoginSuccess({
-        id: role === 'COLLECTOR' ? 'collector-1' : 'admin-1',
-        name: role === 'COLLECTOR' ? 'Anand Murthy' : 'Sunita Rao',
-        role,
-        gate,
+  const handleOneTap = async (role: 'COLLECTOR' | 'ADMIN') => {
+    setIsLoading(true);
+    try {
+      await quickDemoLogin(role, gate);
+      toast({
+        type: 'success',
+        title: 'Demo Access Granted',
+        message: `Signed in as ${role === 'COLLECTOR' ? 'Collector (Gate ' + gate + ')' : 'Admin'}`,
       });
-    } else {
-      router.push(role === 'COLLECTOR' ? '/collector' : '/admin');
+      if (onLoginSuccess) {
+        onLoginSuccess({
+          id: role === 'COLLECTOR' ? 'collector-1' : 'admin-1',
+          name: role === 'COLLECTOR' ? 'Anand Murthy' : 'Dr. Ramesh Kumar',
+          role,
+          gate,
+        });
+      } else {
+        router.push(role === 'COLLECTOR' ? '/collector' : '/admin');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 

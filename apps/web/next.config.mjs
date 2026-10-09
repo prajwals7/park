@@ -2,6 +2,14 @@
 const nextConfig = {
   output: process.env.DOCKER_BUILD === 'true' ? 'standalone' : undefined,
   transpilePackages: ['@wpd/shared'],
+  async rewrites() {
+    return [
+      {
+        source: '/api/v1/:path*',
+        destination: `${process.env.INTERNAL_API_URL || 'http://localhost:4000'}/api/v1/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
