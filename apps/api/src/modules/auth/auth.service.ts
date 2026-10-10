@@ -18,6 +18,7 @@ import {
   ChangePasswordInput,
   ForgotPasswordInput,
   ResetPasswordInput,
+  RegisterCollectorInput,
 } from '@wpd/shared';
 
 // In-memory store for password reset tokens and temporary 2FA challenges
@@ -576,5 +577,71 @@ export class AuthService {
       ip,
       userAgent,
     });
+  }
+
+  // 12. Self-Registration for Gate Collectors (Sign Up)
+  async registerCollector(
+    input: RegisterCollectorInput,
+    ip?: string,
+    userAgent?: string,
+  ): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    user: { id: string; email: string; name: string; role: Role; gate: string };
+  }> {
+    const normalizedEmail = input.email.trim().toLowerCase();
+    const existing = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    if (existing) {
+      throw new BadRequestException({
+        code: 'USER_ALREADY_EXISTS',
+        message: 'An account with this email address already exists. Please log in instead.',
+      });
+    }
+
+    const passwordHash = await CryptoUtil.hashPassword(input.password);
+    const assignedGate = input.gate.trim().toUpperCase() || 'G2';
+
+    const user = await this.prisma.user.create({
+      data: {
+        name: input.name.trim(),
+        email: normalizedEmail,
+        phone: input.phone?.trim() || '9876543210',
+        role: Role.COLLECTOR,
+        status: UserStatus.ACTIVE,
+        passwordHash,
+      },
+    });
+
+    const tokens = await this.issueTokenPair(user, ip, userAgent);
+
+    await this.auditService.log({
+      actorId: user.id,
+      action: 'COLLECTOR_REGISTERED',
+      entity: 'User',
+      entityId: user.id,
+      after: {
+        email: user.email,
+        name: user.name,
+        gate: assignedGate,
+        role: user.role,
+      },
+      ip,
+      userAgent,
+    });
+
+    return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        gate: assignedGate,
+      },
+    };
   }
 }

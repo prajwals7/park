@@ -63,3 +63,14 @@ export const changeUserRoleSchema = z.object({
   role: z.enum(USER_ROLES),
 });
 export type ChangeUserRoleInput = z.infer<typeof changeUserRoleSchema>;
+
+// Collector Self-Registration (Sign Up) Schema
+export const registerCollectorSchema = z.object({
+  name: z.string().trim().min(2, 'Collector name must be at least 2 characters').max(100),
+  email: z.string().trim().email('Must be a valid email address').toLowerCase(),
+  phone: phoneSchema.optional().or(z.literal('')),
+  gate: z.string().trim().min(2, 'Assigned entry gate is required'),
+  password: passwordPolicySchema,
+});
+export type RegisterCollectorInput = z.infer<typeof registerCollectorSchema>;
+

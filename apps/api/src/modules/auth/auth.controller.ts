@@ -33,6 +33,8 @@ import {
   ResetPasswordInput,
   changeUserRoleSchema,
   ChangeUserRoleInput,
+  registerCollectorSchema,
+  RegisterCollectorInput,
 } from '@wpd/shared';
 
 const REFRESH_COOKIE_NAME = 'wpd_refresh_token';
@@ -66,6 +68,32 @@ export class AuthController {
       };
     }
 
+    if (result.refreshToken) {
+      this.setRefreshCookie(res, result.refreshToken);
+    }
+
+    return {
+      success: true,
+      accessToken: result.accessToken,
+      user: result.user,
+    };
+  }
+
+  // 1b. Collector Self-Registration (Public Sign-In/Register)
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60 } })
+  @Post('register-collector')
+  @HttpCode(HttpStatus.CREATED)
+  @UsePipes(new ZodValidationPipe(registerCollectorSchema))
+  async registerCollector(
+    @Body() input: RegisterCollectorInput,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const ip = req.ip || req.socket.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+
+    const result = await this.authService.registerCollector(input, ip, userAgent);
     if (result.refreshToken) {
       this.setRefreshCookie(res, result.refreshToken);
     }

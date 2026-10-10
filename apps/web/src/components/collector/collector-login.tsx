@@ -27,12 +27,20 @@ export function CollectorLogin({
 }: CollectorLoginProps) {
   const { toast } = useToast();
   const router = useRouter();
-  const { login, verify2FA, quickDemoLogin } = useAuth();
+  const { login, registerCollector, verify2FA, quickDemoLogin } = useAuth();
 
+  // Mode: 'LOGIN' (Log in: email + password only) vs 'SIGNUP' (Sign in/register: collector name + gate + email + password)
+  const [authMode, setAuthMode] = useState<'LOGIN' | 'SIGNUP'>('LOGIN');
   const [activeTab, setActiveTab] = useState<'COLLECTOR' | 'ADMIN'>(defaultRole);
+
+  // Form Fields
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('collector@walkerpass.gov.in');
   const [password, setPassword] = useState('Admin@12345');
+  const [phone, setPhone] = useState('');
   const [gate, setGate] = useState(selectedGate);
+
+  // Status
   const [isLoading, setIsLoading] = useState(false);
   const [requires2FA, setRequires2FA] = useState(false);
   const [totpCode, setTotpCode] = useState('');
@@ -42,19 +50,80 @@ export function CollectorLogin({
     setActiveTab(newTab);
     setError(null);
     if (newTab === 'COLLECTOR') {
-      setEmail('collector@walkerpass.gov.in');
+      setEmail(authMode === 'LOGIN' ? 'collector@walkerpass.gov.in' : '');
     } else {
+      setAuthMode('LOGIN'); // Admins only log in with existing account
       setEmail('admin@walkerpass.gov.in');
     }
   };
 
-  const handleInitialLogin = async (e: React.FormEvent) => {
+  const handleModeSwitch = (mode: 'LOGIN' | 'SIGNUP') => {
+    setAuthMode(mode);
+    setError(null);
+    if (mode === 'SIGNUP') {
+      setName('');
+      setEmail('');
+      setPassword('');
+      setPhone('');
+    } else {
+      setEmail(activeTab === 'COLLECTOR' ? 'collector@walkerpass.gov.in' : 'admin@walkerpass.gov.in');
+      setPassword('Admin@12345');
+    }
+  };
+
+  // Submit Handler: Log In (Email + Password only) or Sign Up (Name + Gate + Email + Password)
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
 
     try {
-      const result = await login({ email, password, gate });
+      if (authMode === 'SIGNUP') {
+        if (!name.trim()) {
+          setError('Please enter your full name');
+          setIsLoading(false);
+          return;
+        }
+        if (!gate) {
+          setError('Please select an entry gate');
+          setIsLoading(false);
+          return;
+        }
+
+        const regResult = await registerCollector({
+          name: name.trim(),
+          email: email.trim(),
+          password,
+          gate,
+          phone: phone.trim() || undefined,
+        });
+
+        if (!regResult.success) {
+          setError(regResult.error || 'Failed to sign up collector');
+          return;
+        }
+
+        toast({
+          type: 'success',
+          title: 'Collector Account Created',
+          message: `Welcome, ${name.trim()}! Assigned to Gate ${gate}.`,
+        });
+
+        if (onLoginSuccess) {
+          onLoginSuccess({
+            id: 'collector-registered',
+            name: name.trim(),
+            role: 'COLLECTOR',
+            gate,
+          });
+        } else {
+          router.push('/collector');
+        }
+        return;
+      }
+
+      // LOGIN MODE: Only email and password sent
+      const result = await login({ email: email.trim(), password, gate });
       if (result.requires2FA) {
         setRequires2FA(true);
         toast({
@@ -66,21 +135,21 @@ export function CollectorLogin({
       }
 
       if (!result.success) {
-        setError(result.error || 'Invalid credentials');
+        setError(result.error || 'Invalid email or password');
         return;
       }
 
       toast({
         type: 'success',
-        title: 'Authentication Successful',
-        message: `Welcome to Walker Pass Desk (${activeTab === 'COLLECTOR' ? `Gate ${gate}` : 'Admin Portal'})`,
+        title: 'Logged In Successfully',
+        message: `Welcome back! (${activeTab === 'COLLECTOR' ? 'Gate Desk' : 'Admin Portal'})`,
       });
 
       const role = activeTab;
       if (onLoginSuccess) {
         onLoginSuccess({
           id: 'user-active',
-          name: activeTab === 'COLLECTOR' ? 'Anand Murthy' : 'Sunita Rao',
+          name: activeTab === 'COLLECTOR' ? 'Gate Collector' : 'Administrator',
           role: role,
           gate,
         });
@@ -88,7 +157,7 @@ export function CollectorLogin({
         router.push(role === 'COLLECTOR' ? '/collector' : '/admin');
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Login failed';
+      const msg = err instanceof Error ? err.message : 'Authentication failed';
       setError(msg);
     } finally {
       setIsLoading(false);
@@ -116,7 +185,7 @@ export function CollectorLogin({
       if (onLoginSuccess) {
         onLoginSuccess({
           id: 'user-verified',
-          name: activeTab === 'COLLECTOR' ? 'Anand Murthy' : 'Sunita Rao',
+          name: activeTab === 'COLLECTOR' ? 'Gate Collector' : 'Administrator',
           role: activeTab,
           gate,
         });
@@ -165,7 +234,7 @@ export function CollectorLogin({
           Walker Pass Desk
         </h2>
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          Official Park Pass & Gate Ticketing Management
+          Official Park Pass & Gate Ticketing System
         </p>
       </div>
 
@@ -196,6 +265,34 @@ export function CollectorLogin({
           Supervisor / Admin
         </button>
       </div>
+
+      {/* Mode Toggle: Log In vs Sign In / Sign Up (For Collectors) */}
+      {activeTab === 'COLLECTOR' && (
+        <div className="flex border-b border-slate-200 dark:border-slate-700 text-sm">
+          <button
+            type="button"
+            onClick={() => handleModeSwitch('LOGIN')}
+            className={`flex-1 pb-2.5 text-center font-bold text-xs transition border-b-2 ${
+              authMode === 'LOGIN'
+                ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            Log In (Existing)
+          </button>
+          <button
+            type="button"
+            onClick={() => handleModeSwitch('SIGNUP')}
+            className={`flex-1 pb-2.5 text-center font-bold text-xs transition border-b-2 ${
+              authMode === 'SIGNUP'
+                ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            Sign In / Register (First Time)
+          </button>
+        </div>
+      )}
 
       {/* One-Tap Instant Access Bar */}
       <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/40 rounded-xl space-y-2">
@@ -233,33 +330,50 @@ export function CollectorLogin({
       )}
 
       {!requires2FA ? (
-        <form onSubmit={handleInitialLogin} className="space-y-4">
-          {/* Gate Selector for Collectors */}
-          {activeTab === 'COLLECTOR' && (
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                Assigned Entry Gate *
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {GATES.map((g) => (
-                  <button
-                    key={g}
-                    type="button"
-                    onClick={() => setGate(g)}
-                    className={`py-2 px-2 rounded-xl border text-sm font-bold transition flex flex-col items-center justify-center gap-0.5 ${
-                      gate === g
-                        ? 'bg-park-50 dark:bg-park-950 border-park-700 dark:border-park-400 text-park-900 dark:text-park-200 ring-2 ring-park-700/20'
-                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                    }`}
-                  >
-                    <span className="text-[10px] opacity-75 font-normal">Gate</span>
-                    <span className="text-sm font-extrabold">{g}</span>
-                  </button>
-                ))}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* SIGN IN / FIRST TIME: Ask Collector Name & Gate */}
+          {activeTab === 'COLLECTOR' && authMode === 'SIGNUP' && (
+            <>
+              <FormItem label="Collector Full Name" required>
+                <div className="relative">
+                  <User className="w-4 h-4 absolute left-3 top-3.5 text-slate-400" />
+                  <Input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. Ramesh Kumar"
+                    className="pl-9 h-11 text-sm rounded-xl"
+                  />
+                </div>
+              </FormItem>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                  Assigned Entry Gate *
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {GATES.map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setGate(g)}
+                      className={`py-2 px-2 rounded-xl border text-sm font-bold transition flex flex-col items-center justify-center gap-0.5 ${
+                        gate === g
+                          ? 'bg-park-50 dark:bg-park-950 border-park-700 dark:border-park-400 text-park-900 dark:text-park-200 ring-2 ring-park-700/20'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      <span className="text-[10px] opacity-75 font-normal">Gate</span>
+                      <span className="text-sm font-extrabold">{g}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            </>
           )}
 
+          {/* Email: Always requested */}
           <FormItem label={activeTab === 'COLLECTOR' ? 'Collector Email' : 'Admin Email'} required>
             <div className="relative">
               <User className="w-4 h-4 absolute left-3 top-3.5 text-slate-400" />
@@ -274,6 +388,7 @@ export function CollectorLogin({
             </div>
           </FormItem>
 
+          {/* Password: Always requested */}
           <FormItem label="Password" required>
             <div className="relative">
               <Lock className="w-4 h-4 absolute left-3 top-3.5 text-slate-400" />
@@ -286,6 +401,11 @@ export function CollectorLogin({
                 className="pl-9 h-11 text-sm rounded-xl"
               />
             </div>
+            {authMode === 'SIGNUP' && (
+              <p className="text-[11px] text-slate-400 mt-1">
+                Min 8 chars, 1 uppercase, 1 lowercase, 1 number & 1 special symbol (e.g. Pass@1234)
+              </p>
+            )}
           </FormItem>
 
           <Button
@@ -295,7 +415,11 @@ export function CollectorLogin({
             isLoading={isLoading}
             className="w-full h-12 text-base font-bold rounded-xl mt-2 flex items-center justify-center gap-2"
           >
-            {activeTab === 'COLLECTOR' ? `Sign In to Gate ${gate}` : 'Sign In to Admin Portal'}{' '}
+            {authMode === 'SIGNUP'
+              ? `Register & Enter Gate ${gate}`
+              : activeTab === 'COLLECTOR'
+              ? 'Log In to Gate Desk'
+              : 'Log In to Admin Portal'}{' '}
             <ArrowRight className="w-4 h-4" />
           </Button>
 

@@ -22,6 +22,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (credentials: { email: string; password: string; gate?: string }) => Promise<{ success: boolean; error?: string; requires2FA?: boolean }>;
+  registerCollector: (data: { name: string; email: string; password: string; gate: string; phone?: string }) => Promise<{ success: boolean; error?: string }>;
   verify2FA: (totpCode: string) => Promise<{ success: boolean; error?: string }>;
   quickDemoLogin: (role: 'COLLECTOR' | 'ADMIN', gate?: string) => Promise<void>;
   logout: () => void;
@@ -110,6 +111,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
 
       saveSession(loggedUser, data.accessToken || null);
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Network connection failed' };
+    }
+  };
+
+  const registerCollector = async (data: {
+    name: string;
+    email: string;
+    password: string;
+    gate: string;
+    phone?: string;
+  }) => {
+    try {
+      const res = await fetch('/api/v1/auth/register-collector', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.name,
+          email: data.email,
+          password: data.password,
+          gate: data.gate,
+          phone: data.phone || '',
+        }),
+      });
+
+      const resData = await res.json();
+      if (!res.ok) {
+        return {
+          success: false,
+          error: resData.message || (Array.isArray(resData.details) ? resData.details[0]?.message : 'Registration failed'),
+        };
+      }
+
+      const newUser: AuthUser = {
+        id: resData.user?.id || 'u-collector',
+        name: resData.user?.name || data.name,
+        email: resData.user?.email || data.email,
+        role: 'COLLECTOR',
+        gate: data.gate || 'G2',
+      };
+
+      saveSession(newUser, resData.accessToken || null);
       return { success: true };
     } catch (err: any) {
       return { success: false, error: err.message || 'Network connection failed' };
@@ -230,6 +274,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         isAuthenticated: !!user,
         login,
+        registerCollector,
         verify2FA,
         quickDemoLogin,
         logout,
