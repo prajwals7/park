@@ -1,0 +1,6 @@
+{
+  "buildCommand": "pnpm --filter @wpd/shared build && pnpm --filter @wpd/web build",
+  "outputDirectory": "apps/web/.next",
+  "framework": "nextjs",
+  "installCommand": "pnpm install"
+}
