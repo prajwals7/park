@@ -226,7 +226,7 @@ export function CollectorRegistrationWizard({
         receiptNo: receiptNo.trim().toUpperCase(),
       };
 
-      const data = await apiRequest('/walkers', {
+      const data = await apiRequest<{ walker?: { id: string } }>('/walkers', {
         method: 'POST',
         headers: {
           'x-idempotency-key': key,

@@ -57,4 +57,4 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:4000/health || exit 1
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
-CMD ["node", "apps/api/dist/main"]
+CMD ["node", "apps/api/dist/src/main.js"]

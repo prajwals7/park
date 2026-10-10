@@ -20,7 +20,7 @@ export interface AppShellProps {
 export function AppShell({
   children,
   activeRole,
-  onRoleChange,
+  onRoleChange: _onRoleChange,
   activeGate = 'G2',
   onGateChange,
 }: AppShellProps) {

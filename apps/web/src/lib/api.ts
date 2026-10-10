@@ -5,11 +5,11 @@
  * Automatically manages Authorization headers, JSON serialization, and request timeouts.
  */
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   data?: T;
   success?: boolean;
   message?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export function getStoredToken(): string | null {
@@ -24,7 +24,7 @@ export function getStoredToken(): string | null {
   }
 }
 
-export async function apiRequest<T = any>(
+export async function apiRequest<T = unknown>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
@@ -80,11 +80,14 @@ export async function apiRequest<T = any>(
     }
 
     return (await res.text()) as unknown as T;
-  } catch (err: any) {
+  } catch (err: unknown) {
     clearTimeout(timeoutId);
-    if (err.name === 'AbortError') {
-      throw new Error('Request timed out. Please check your network connection.');
+    if (err instanceof Error) {
+      if (err.name === 'AbortError') {
+        throw new Error('Request timed out. Please check your network connection.', { cause: err });
+      }
+      throw err;
     }
-    throw err;
+    throw new Error('An unexpected network error occurred.', { cause: err });
   }
 }

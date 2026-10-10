@@ -119,22 +119,22 @@ export function AdminWalkerManagement({ apiClient }: AdminWalkerManagementProps)
       }
 
       // Fetch walkers via apiRequest
-      const json = await apiRequest<{ data?: any[]; walkers?: any[] }>('/walkers?limit=100');
-      const items = json?.data || json?.walkers || (Array.isArray(json) ? json : []);
-      const mapped: WalkerRow[] = items.map((raw: any) => ({
+      const json = await apiRequest<{ data?: Record<string, unknown>[]; walkers?: Record<string, unknown>[] }>('/walkers?limit=100');
+      const items = json?.data || json?.walkers || (Array.isArray(json) ? (json as Record<string, unknown>[]) : []);
+      const mapped: WalkerRow[] = items.map((raw: Record<string, unknown>) => ({
         id: String(raw.id || ''),
         passNo: String(raw.passNo || ''),
         name: String(raw.name || ''),
         phone: String(raw.phone || ''),
-        gateCode: raw.gateCode || raw.gate?.code || 'G2',
+        gateCode: String(raw.gateCode || (raw.gate as { code?: string })?.code || 'G2'),
         status: (raw.status as 'ACTIVE' | 'EXPIRING' | 'EXPIRED') || 'ACTIVE',
-        expiryDate: raw.expiryDate ? new Date(raw.expiryDate).toLocaleDateString('en-GB') : 'N/A',
+        expiryDate: raw.expiryDate ? new Date(String(raw.expiryDate)).toLocaleDateString('en-GB') : 'N/A',
         daysRemaining: 30,
-        aadhaarLast4: raw.aadhaarLast4 || undefined,
-        maskedAadhaar: `XXXX XXXX ${raw.aadhaarLast4 || 'XXXX'}`,
-        notes: raw.notes || undefined,
-        deletedAt: raw.deletedAt || null,
-        createdAt: raw.createdAt ? new Date(raw.createdAt).toLocaleDateString('en-GB') : '',
+        aadhaarLast4: raw.aadhaarLast4 ? String(raw.aadhaarLast4) : undefined,
+        maskedAadhaar: `XXXX XXXX ${raw.aadhaarLast4 ? String(raw.aadhaarLast4) : 'XXXX'}`,
+        notes: raw.notes ? String(raw.notes) : undefined,
+        deletedAt: raw.deletedAt ? String(raw.deletedAt) : null,
+        createdAt: raw.createdAt ? new Date(String(raw.createdAt)).toLocaleDateString('en-GB') : '',
       }));
       setWalkers(mapped);
     } catch {

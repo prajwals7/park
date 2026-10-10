@@ -112,8 +112,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       saveSession(loggedUser, data.accessToken || null);
       return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Network connection failed' };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Network connection failed';
+      return { success: false, error: msg };
     }
   };
 
@@ -155,8 +156,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       saveSession(newUser, resData.accessToken || null);
       return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Network connection failed' };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Network connection failed';
+      return { success: false, error: msg };
     }
   };
 
@@ -183,8 +185,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       saveSession(confirmedUser, data.accessToken || null);
       setPendingChallenge(null);
       return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message || '2FA verification failed' };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '2FA verification failed';
+      return { success: false, error: msg };
     }
   };
 

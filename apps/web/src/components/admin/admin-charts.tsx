@@ -289,7 +289,6 @@ export function AdminCharts({
               {regData.map((item, idx) => {
                 const newHeight = (item.registrations / maxRegCount) * 100;
                 const renewHeight = (item.renewals / maxRegCount) * 100;
-                const totalCount = item.registrations + item.renewals;
 
                 return (
                   <div key={idx} className="flex-1 flex flex-col items-center gap-1 h-full justify-end group relative">

@@ -71,7 +71,7 @@ export function CollectorWalkerProfile({
     const idempotencyKey = crypto.randomUUID();
 
     try {
-      const data = await apiRequest(`/walkers/${walker.id}/renew`, {
+      await apiRequest(`/walkers/${walker.id}/renew`, {
         method: 'POST',
         headers: {
           'x-idempotency-key': idempotencyKey,

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../../context/auth-context';
 import { CollectorLogin } from '../../components/collector/collector-login';
-import { AppShell, UserRole } from '../../components/layout/app-shell';
+import { AppShell } from '../../components/layout/app-shell';
 import { AdminDashboard } from '../../components/admin/admin-dashboard';
 import { NetworkStatusBanner } from '../../components/ui/network-status-banner';
 import { Button } from '../../components/ui/button';
@@ -12,7 +12,6 @@ import { TreePine, Loader2, ShieldAlert, ArrowLeft, LogIn } from 'lucide-react';
 
 export default function AdminPage() {
   const { user, isAuthenticated, isLoading, setGate, logout } = useAuth();
-  const [activeRole, setActiveRole] = useState<UserRole>('ADMIN');
   const [activeGate, setActiveGate] = useState('G2');
 
   useEffect(() => {
@@ -43,7 +42,6 @@ export default function AdminPage() {
           defaultRole="ADMIN"
           selectedGate={activeGate}
           onLoginSuccess={(loggedUser) => {
-            setActiveRole(loggedUser.role === 'COLLECTOR' ? 'COLLECTOR' : 'ADMIN');
             setActiveGate(loggedUser.gate);
           }}
         />

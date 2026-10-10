@@ -52,18 +52,24 @@ export function CollectorHome({
       if (res.ok) {
         const json = await res.json();
         const items = json.data || json.walkers || [];
-        const mapped: CollectorWalkerItem[] = items.map((w: any) => ({
-          id: w.id,
-          passNo: w.currentPass?.passNo || w.passNo || 'N/A',
-          name: w.name,
-          phone: w.phone,
-          gateId: w.gateCode || w.gateId || currentGate,
-          status: w.currentPass?.status || w.status || 'ACTIVE',
-          expiryDate: w.currentPass?.validUntil ? new Date(w.currentPass.validUntil).toLocaleDateString('en-GB') : 'N/A',
-          daysRemaining: w.currentPass?.daysRemaining ?? 30,
-          latestReceiptNo: w.latestPayment?.receiptNo || 'N/A',
-          latestPaymentMode: w.latestPayment?.mode || 'CASH',
-        }));
+        const mapped: CollectorWalkerItem[] = items.map((w: Record<string, unknown>) => {
+          const currentPass = w.currentPass as Record<string, unknown> | undefined;
+          const latestPayment = w.latestPayment as Record<string, unknown> | undefined;
+          return {
+            id: String(w.id || ''),
+            passNo: String(currentPass?.passNo || w.passNo || 'N/A'),
+            name: String(w.name || ''),
+            phone: String(w.phone || ''),
+            gateId: String(w.gateCode || w.gateId || currentGate),
+            status: (currentPass?.status || w.status || 'ACTIVE') as 'ACTIVE' | 'EXPIRING' | 'EXPIRED',
+            expiryDate: currentPass?.validUntil
+              ? new Date(String(currentPass.validUntil)).toLocaleDateString('en-GB')
+              : 'N/A',
+            daysRemaining: typeof currentPass?.daysRemaining === 'number' ? currentPass.daysRemaining : 30,
+            latestReceiptNo: String(latestPayment?.receiptNo || 'N/A'),
+            latestPaymentMode: (latestPayment?.mode as 'CASH' | 'UPI') || 'CASH',
+          };
+        });
         setWalkers(mapped);
       } else {
         setWalkers([]);
