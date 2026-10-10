@@ -38,6 +38,7 @@ export function CollectorWalkerProfile({
   const [isRenewOpen, setIsRenewOpen] = useState(false);
   const [receiptNo, setReceiptNo] = useState('');
   const [paymentMode, setPaymentMode] = useState<'CASH' | 'UPI'>('CASH');
+  const [ticketFile, setTicketFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [renewedSuccess, setRenewedSuccess] = useState<{
     receiptNo: string;
@@ -53,6 +54,15 @@ export function CollectorWalkerProfile({
         type: 'error',
         title: 'Invalid Receipt Slip Number',
         message: 'Please enter the valid pre-printed paper slip number.',
+      });
+      return;
+    }
+
+    if (!ticketFile) {
+      toast({
+        type: 'error',
+        title: 'Physical Pass Photo Mandatory',
+        message: 'A fresh photograph of the renewed physical pass / ticket is required.',
       });
       return;
     }
@@ -307,7 +317,16 @@ export function CollectorWalkerProfile({
               </div>
             </div>
 
-            <FileUpload label="Physical Slip / Ticket Photo" onFileSelect={() => {}} />
+            <div className="space-y-1">
+              <FileUpload
+                label="Renewed Physical Pass / Ticket Photo *"
+                required
+                onFileSelect={(file) => setTicketFile(file)}
+              />
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                Mandatory: Capture or upload a photo of the physical pass sticker or printed receipt slip for 30-day renewal.
+              </p>
+            </div>
 
             <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border text-xs flex justify-between items-center">
               <span className="text-slate-500">Tariff:</span>
