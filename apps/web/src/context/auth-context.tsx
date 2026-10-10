@@ -257,7 +257,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setToken(null);
     setPendingChallenge(null);
-    router.push('/login');
+    router.push('/');
   };
 
   const setGate = (newGate: string) => {
