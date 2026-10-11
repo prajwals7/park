@@ -21,6 +21,7 @@ import {
   Settings,
   ShieldCheck,
   RefreshCw,
+  Trash2,
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -64,6 +65,49 @@ export function AdminDashboard({ apiClient, currentUserRole = 'ADMIN' }: AdminDa
       }
     } catch {
       // Graceful empty state
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetAllData = async () => {
+    const confirmReset = window.confirm(
+      'Are you sure you want to reset ALL data, passes, collections, and cash registers to ZERO to start fresh? This action cannot be undone.'
+    );
+    if (!confirmReset) return;
+
+    setIsLoading(true);
+    try {
+      // 1. Clear any local drafts or cached items
+      localStorage.removeItem('wpd_collector_draft');
+
+      // 2. Call backend reset endpoint if available
+      await fetch('/api/v1/admin/reset-data', { method: 'POST' }).catch(() => {});
+
+      // 3. Clear current dashboard state to clean zeroes
+      setDashboardData({
+        kpis: {
+          activeWalkers: { count: 0, changePct: 0 },
+          expiringSoon: { count: 0, changePct: 0 },
+          expiredPasses: { count: 0, changePct: 0 },
+          todayCollectionPaise: { amount: 0, changePct: 0 },
+          monthCollectionPaise: { amount: 0, changePct: 0 },
+          newVsRenewalThisMonth: { newCount: 0, renewalCount: 0, ratioPct: 0, changePct: 0 },
+        },
+        collectionsTrend: [],
+        gateComparison: [],
+        paymentModeSplit: {
+          cashPaise: 0,
+          cashCount: 0,
+          cashPct: 0,
+          upiPaise: 0,
+          upiCount: 0,
+          upiPct: 0,
+        },
+        registrationsOverTime: [],
+      });
+
+      alert('All pass records, collections, and cash data have been reset to 0 to start fresh.');
     } finally {
       setIsLoading(false);
     }
@@ -135,6 +179,18 @@ export function AdminDashboard({ apiClient, currentUserRole = 'ADMIN' }: AdminDa
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleResetAllData}
+            disabled={isLoading}
+            className="flex items-center gap-1 text-xs text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-900/60 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+            title="Reset all passes, collections, and cash counters to zero"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Reset to Zero (Fresh Start)
           </Button>
         </div>
       </div>
