@@ -197,24 +197,24 @@ export function AdminReportsView({ currentUserRole = 'ADMIN' }: AdminReportsView
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="bg-white p-4 rounded-xl border shadow-xs">
               <span className="text-xs font-medium text-slate-500 block">TOTAL COLLECTED</span>
-              <span className="text-2xl font-bold text-slate-900 mt-1 block">₹48,200</span>
-              <span className="text-[11px] text-slate-400">241 physical passes</span>
+              <span className="text-2xl font-bold text-slate-900 mt-1 block">₹0</span>
+              <span className="text-[11px] text-slate-400">0 physical passes</span>
             </div>
             <div className="bg-white p-4 rounded-xl border shadow-xs">
               <span className="text-xs font-medium text-emerald-600 block">PHYSICAL CASH</span>
-              <span className="text-2xl font-bold text-emerald-700 mt-1 block">₹32,600</span>
-              <span className="text-[11px] text-emerald-600/80">163 slips (67.6%)</span>
+              <span className="text-2xl font-bold text-emerald-700 mt-1 block">₹0</span>
+              <span className="text-[11px] text-emerald-600/80">0 slips (0%)</span>
             </div>
             <div className="bg-white p-4 rounded-xl border shadow-xs">
               <span className="text-xs font-medium text-indigo-600 block">UPI (QR SCAN)</span>
-              <span className="text-2xl font-bold text-indigo-700 mt-1 block">₹15,600</span>
-              <span className="text-[11px] text-indigo-600/80">78 slips (32.4%)</span>
+              <span className="text-2xl font-bold text-indigo-700 mt-1 block">₹0</span>
+              <span className="text-[11px] text-indigo-600/80">0 slips (0%)</span>
             </div>
             <div className="bg-white p-4 rounded-xl border shadow-xs">
               <span className="text-xs font-medium text-slate-500 block">NEW VS RENEWALS</span>
               <div className="text-sm font-bold text-slate-800 mt-2 space-y-0.5">
-                <div>New: 142 passes (₹28,400)</div>
-                <div>Renewals: 99 passes (₹19,800)</div>
+                <div>New: 0 passes (₹0)</div>
+                <div>Renewals: 0 passes (₹0)</div>
               </div>
             </div>
           </div>
@@ -237,24 +237,24 @@ export function AdminReportsView({ currentUserRole = 'ADMIN' }: AdminReportsView
               <tbody className="divide-y divide-slate-100">
                 <tr>
                   <td className="p-3 font-semibold text-slate-800">Gate G2 (North Entrance)</td>
-                  <td className="p-3">112 passes</td>
-                  <td className="p-3 text-emerald-700 font-mono">₹14,800</td>
-                  <td className="p-3 text-indigo-700 font-mono">₹7,600</td>
-                  <td className="p-3 text-right font-bold text-slate-900 font-mono">₹22,400</td>
+                  <td className="p-3">0 passes</td>
+                  <td className="p-3 text-emerald-700 font-mono">₹0</td>
+                  <td className="p-3 text-indigo-700 font-mono">₹0</td>
+                  <td className="p-3 text-right font-bold text-slate-900 font-mono">₹0</td>
                 </tr>
                 <tr>
                   <td className="p-3 font-semibold text-slate-800">Gate GS (South Entrance)</td>
-                  <td className="p-3">78 passes</td>
-                  <td className="p-3 text-emerald-700 font-mono">₹11,200</td>
-                  <td className="p-3 text-indigo-700 font-mono">₹4,400</td>
-                  <td className="p-3 text-right font-bold text-slate-900 font-mono">₹15,600</td>
+                  <td className="p-3">0 passes</td>
+                  <td className="p-3 text-emerald-700 font-mono">₹0</td>
+                  <td className="p-3 text-indigo-700 font-mono">₹0</td>
+                  <td className="p-3 text-right font-bold text-slate-900 font-mono">₹0</td>
                 </tr>
                 <tr>
                   <td className="p-3 font-semibold text-slate-800">Gate G9 (East Entrance)</td>
-                  <td className="p-3">51 passes</td>
-                  <td className="p-3 text-emerald-700 font-mono">₹6,600</td>
-                  <td className="p-3 text-indigo-700 font-mono">₹3,600</td>
-                  <td className="p-3 text-right font-bold text-slate-900 font-mono">₹10,200</td>
+                  <td className="p-3">0 passes</td>
+                  <td className="p-3 text-emerald-700 font-mono">₹0</td>
+                  <td className="p-3 text-indigo-700 font-mono">₹0</td>
+                  <td className="p-3 text-right font-bold text-slate-900 font-mono">₹0</td>
                 </tr>
               </tbody>
             </table>
@@ -298,35 +298,14 @@ export function AdminReportsView({ currentUserRole = 'ADMIN' }: AdminReportsView
               </thead>
               <tbody className="divide-y divide-slate-100">
                 <tr>
-                  <td className="p-3 font-mono font-bold text-indigo-600">WP-000842</td>
-                  <td className="p-3 font-medium text-slate-900">Rajesh Verma</td>
-                  <td className="p-3 text-slate-600">9876543210</td>
-                  <td className="p-3">Gate G2</td>
-                  <td className="p-3 font-medium">10 Oct 2026</td>
-                  <td className="p-3 text-amber-600 font-bold">3 days left</td>
-                  <td className="p-3 text-right">
-                    <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-[10px] font-semibold">
-                      EXPIRING
-                    </span>
-                  </td>
-                </tr>
-                <tr>
-                  <td className="p-3 font-mono font-bold text-indigo-600">WP-000891</td>
-                  <td className="p-3 font-medium text-slate-900">Kavitha Reddy</td>
-                  <td className="p-3 text-slate-600">9845112233</td>
-                  <td className="p-3">Gate GS</td>
-                  <td className="p-3 font-medium">12 Oct 2026</td>
-                  <td className="p-3 text-amber-600 font-bold">5 days left</td>
-                  <td className="p-3 text-right">
-                    <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-[10px] font-semibold">
-                      EXPIRING
-                    </span>
+                  <td colSpan={7} className="p-8 text-center text-slate-400">
+                    No expiring or expired passes recorded yet.
                   </td>
                 </tr>
               </tbody>
             </table>
             <div className="p-3 bg-slate-50 border-t text-[11px] text-slate-500 flex items-center justify-between">
-              <span>Showing 2 records expiring soon</span>
+              <span>Showing 0 records expiring soon</span>
               <span className="italic text-slate-400">
                 * Note: Aadhaar numbers are strictly excluded from all expiry reports
               </span>
@@ -363,45 +342,8 @@ export function AdminReportsView({ currentUserRole = 'ADMIN' }: AdminReportsView
               </thead>
               <tbody className="divide-y divide-slate-100">
                 <tr>
-                  <td className="p-3 font-medium text-slate-900">Ramesh Kumar (G2 Day Shift)</td>
-                  <td className="p-3">Gate G2</td>
-                  <td className="p-3 font-mono">74 slips</td>
-                  <td className="p-3 font-mono font-semibold">₹14,800</td>
-                  <td className="p-3 font-mono text-emerald-700 font-bold">₹14,800</td>
-                  <td className="p-3 font-mono text-slate-500">₹0</td>
-                  <td className="p-3">
-                    <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full text-[10px] font-semibold flex items-center gap-1 w-fit">
-                      <CheckCircle2 className="w-3 h-3" /> BALANCED
-                    </span>
-                  </td>
-                  <td className="p-3 text-right">
-                    <button
-                      type="button"
-                      className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
-                    >
-                      View Slip
-                    </button>
-                  </td>
-                </tr>
-                <tr>
-                  <td className="p-3 font-medium text-slate-900">Suresh Gowda (GS Shift)</td>
-                  <td className="p-3">Gate GS</td>
-                  <td className="p-3 font-mono">56 slips</td>
-                  <td className="p-3 font-mono font-semibold">₹11,200</td>
-                  <td className="p-3 font-mono text-amber-700 font-bold">₹11,180</td>
-                  <td className="p-3 font-mono text-rose-600 font-bold">-₹20 (Shortage)</td>
-                  <td className="p-3">
-                    <span className="bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full text-[10px] font-semibold flex items-center gap-1 w-fit">
-                      <AlertTriangle className="w-3 h-3" /> SHORTAGE
-                    </span>
-                  </td>
-                  <td className="p-3 text-right">
-                    <button
-                      type="button"
-                      className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
-                    >
-                      Edit Notes
-                    </button>
+                  <td colSpan={8} className="p-8 text-center text-slate-400">
+                    No end-of-shift cash handovers pending. All counters reset to zero.
                   </td>
                 </tr>
               </tbody>
@@ -443,31 +385,9 @@ export function AdminReportsView({ currentUserRole = 'ADMIN' }: AdminReportsView
               </thead>
               <tbody className="divide-y divide-slate-100 font-mono">
                 <tr>
-                  <td className="p-3 font-bold text-slate-900">RC-000101</td>
-                  <td className="p-3 text-indigo-600 font-semibold">PASS-00101</td>
-                  <td className="p-3 font-sans font-medium text-slate-800">Ananya Sharma</td>
-                  <td className="p-3 font-sans">Gate G2</td>
-                  <td className="p-3">₹200.00</td>
-                  <td className="p-3 font-sans">CASH</td>
-                  <td className="p-3 text-right text-slate-400">10:14 IST</td>
-                </tr>
-                <tr>
-                  <td className="p-3 font-bold text-slate-900">RC-000102</td>
-                  <td className="p-3 text-indigo-600 font-semibold">PASS-00102</td>
-                  <td className="p-3 font-sans font-medium text-slate-800">Rajesh Verma</td>
-                  <td className="p-3 font-sans">Gate G2</td>
-                  <td className="p-3">₹200.00</td>
-                  <td className="p-3 font-sans">UPI</td>
-                  <td className="p-3 text-right text-slate-400">10:19 IST</td>
-                </tr>
-                <tr>
-                  <td className="p-3 font-bold text-slate-900">RC-000103</td>
-                  <td className="p-3 text-indigo-600 font-semibold">PASS-00103</td>
-                  <td className="p-3 font-sans font-medium text-slate-800">Kavitha Reddy</td>
-                  <td className="p-3 font-sans">Gate GS</td>
-                  <td className="p-3">₹200.00</td>
-                  <td className="p-3 font-sans">CASH</td>
-                  <td className="p-3 text-right text-slate-400">10:24 IST</td>
+                  <td colSpan={7} className="p-8 text-center text-slate-400 font-sans">
+                    No physical receipt slips issued yet. Ready for new admissions.
+                  </td>
                 </tr>
               </tbody>
             </table>
