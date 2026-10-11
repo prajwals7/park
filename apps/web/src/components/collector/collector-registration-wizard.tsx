@@ -7,6 +7,7 @@ import { FileUpload } from '../ui/file-upload';
 import { useToast } from '../ui/toast';
 import { VerhoeffUtil, GATES, PASS_CONFIG } from '@wpd/shared';
 import { apiRequest } from '@/lib/api';
+import { saveRecordedPass } from '@/lib/pass-store';
 import {
   CheckCircle2,
   AlertCircle,
@@ -244,6 +245,17 @@ export function CollectorRegistrationWizard({
         paymentMode,
       };
 
+      saveRecordedPass({
+        id: newWalker.id,
+        passNo: newWalker.passNo,
+        name: newWalker.name,
+        phone: phone.trim(),
+        gateId: gateId || currentGate || 'G2',
+        receiptNo: newWalker.receiptNo,
+        amountPaise: 20000,
+        paymentMode,
+      });
+
       setCompletedWalker(newWalker);
       toast({
         type: 'success',
@@ -270,6 +282,17 @@ export function CollectorRegistrationWizard({
         paymentMode,
       };
       localStorage.removeItem(DRAFT_KEY);
+
+      saveRecordedPass({
+        id: newWalker.id,
+        passNo: newWalker.passNo,
+        name: newWalker.name,
+        phone: phone.trim(),
+        gateId: gateId || currentGate || 'G2',
+        receiptNo: newWalker.receiptNo,
+        amountPaise: 20000,
+        paymentMode,
+      });
       setCompletedWalker(newWalker);
 
       toast({

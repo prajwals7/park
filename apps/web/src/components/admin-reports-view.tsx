@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   BarChart3,
   Calendar,
@@ -12,6 +12,7 @@ import {
   Lock,
 } from 'lucide-react';
 import { GATES } from '@wpd/shared';
+import { evaluateReportsAndReconciliation, EvaluatedReconciliation } from '@/lib/pass-store';
 
 interface AdminReportsViewProps {
   currentUserRole?: 'SUPER_ADMIN' | 'ADMIN' | 'COLLECTOR';
@@ -26,6 +27,17 @@ export function AdminReportsView({ currentUserRole = 'ADMIN' }: AdminReportsView
   const [selectedPeriod, setSelectedPeriod] = useState<'daily' | 'monthly'>('daily');
   const [expiryThreshold, setExpiryThreshold] = useState<'7' | '15' | '30' | 'EXPIRED'>('7');
   const [isExporting, setIsExporting] = useState<string | null>(null);
+
+  // Dynamic live evaluated state
+  const [metrics, setMetrics] = useState<EvaluatedReconciliation>(() => evaluateReportsAndReconciliation());
+
+  useEffect(() => {
+    const updateMetrics = () => {
+      setMetrics(evaluateReportsAndReconciliation());
+    };
+    window.addEventListener('wpd_data_updated', updateMetrics);
+    return () => window.removeEventListener('wpd_data_updated', updateMetrics);
+  }, []);
 
   // If collector attempts to view admin reports
   if (currentUserRole === 'COLLECTOR') {
@@ -197,23 +209,23 @@ export function AdminReportsView({ currentUserRole = 'ADMIN' }: AdminReportsView
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="bg-white p-4 rounded-xl border shadow-xs">
               <span className="text-xs font-medium text-slate-500 block">TOTAL COLLECTED</span>
-              <span className="text-2xl font-bold text-slate-900 mt-1 block">₹0</span>
-              <span className="text-[11px] text-slate-400">0 physical passes</span>
+              <span className="text-2xl font-bold text-slate-900 mt-1 block">₹{metrics.totalCollectedInr.toLocaleString('en-IN')}</span>
+              <span className="text-[11px] text-slate-400">{metrics.totalPassesCount} physical passes</span>
             </div>
             <div className="bg-white p-4 rounded-xl border shadow-xs">
               <span className="text-xs font-medium text-emerald-600 block">PHYSICAL CASH</span>
-              <span className="text-2xl font-bold text-emerald-700 mt-1 block">₹0</span>
-              <span className="text-[11px] text-emerald-600/80">0 slips (0%)</span>
+              <span className="text-2xl font-bold text-emerald-700 mt-1 block">₹{metrics.cashInr.toLocaleString('en-IN')}</span>
+              <span className="text-[11px] text-emerald-600/80">{metrics.cashCount} slips ({metrics.cashPct}%)</span>
             </div>
             <div className="bg-white p-4 rounded-xl border shadow-xs">
               <span className="text-xs font-medium text-indigo-600 block">UPI (QR SCAN)</span>
-              <span className="text-2xl font-bold text-indigo-700 mt-1 block">₹0</span>
-              <span className="text-[11px] text-indigo-600/80">0 slips (0%)</span>
+              <span className="text-2xl font-bold text-indigo-700 mt-1 block">₹{metrics.upiInr.toLocaleString('en-IN')}</span>
+              <span className="text-[11px] text-indigo-600/80">{metrics.upiCount} slips ({metrics.upiPct}%)</span>
             </div>
             <div className="bg-white p-4 rounded-xl border shadow-xs">
               <span className="text-xs font-medium text-slate-500 block">NEW VS RENEWALS</span>
               <div className="text-sm font-bold text-slate-800 mt-2 space-y-0.5">
-                <div>New: 0 passes (₹0)</div>
+                <div>New: {metrics.totalPassesCount} passes (₹{metrics.totalCollectedInr.toLocaleString('en-IN')})</div>
                 <div>Renewals: 0 passes (₹0)</div>
               </div>
             </div>
@@ -237,24 +249,24 @@ export function AdminReportsView({ currentUserRole = 'ADMIN' }: AdminReportsView
               <tbody className="divide-y divide-slate-100">
                 <tr>
                   <td className="p-3 font-semibold text-slate-800">Gate G2 (North Entrance)</td>
-                  <td className="p-3">0 passes</td>
-                  <td className="p-3 text-emerald-700 font-mono">₹0</td>
-                  <td className="p-3 text-indigo-700 font-mono">₹0</td>
-                  <td className="p-3 text-right font-bold text-slate-900 font-mono">₹0</td>
+                  <td className="p-3">{metrics.gateBreakdown.G2.passes} passes</td>
+                  <td className="p-3 text-emerald-700 font-mono">₹{metrics.gateBreakdown.G2.cashInr.toLocaleString('en-IN')}</td>
+                  <td className="p-3 text-indigo-700 font-mono">₹{metrics.gateBreakdown.G2.upiInr.toLocaleString('en-IN')}</td>
+                  <td className="p-3 text-right font-bold text-slate-900 font-mono">₹{metrics.gateBreakdown.G2.totalInr.toLocaleString('en-IN')}</td>
                 </tr>
                 <tr>
                   <td className="p-3 font-semibold text-slate-800">Gate GS (South Entrance)</td>
-                  <td className="p-3">0 passes</td>
-                  <td className="p-3 text-emerald-700 font-mono">₹0</td>
-                  <td className="p-3 text-indigo-700 font-mono">₹0</td>
-                  <td className="p-3 text-right font-bold text-slate-900 font-mono">₹0</td>
+                  <td className="p-3">{metrics.gateBreakdown.GS.passes} passes</td>
+                  <td className="p-3 text-emerald-700 font-mono">₹{metrics.gateBreakdown.GS.cashInr.toLocaleString('en-IN')}</td>
+                  <td className="p-3 text-indigo-700 font-mono">₹{metrics.gateBreakdown.GS.upiInr.toLocaleString('en-IN')}</td>
+                  <td className="p-3 text-right font-bold text-slate-900 font-mono">₹{metrics.gateBreakdown.GS.totalInr.toLocaleString('en-IN')}</td>
                 </tr>
                 <tr>
                   <td className="p-3 font-semibold text-slate-800">Gate G9 (East Entrance)</td>
-                  <td className="p-3">0 passes</td>
-                  <td className="p-3 text-emerald-700 font-mono">₹0</td>
-                  <td className="p-3 text-indigo-700 font-mono">₹0</td>
-                  <td className="p-3 text-right font-bold text-slate-900 font-mono">₹0</td>
+                  <td className="p-3">{metrics.gateBreakdown.G9.passes} passes</td>
+                  <td className="p-3 text-emerald-700 font-mono">₹{metrics.gateBreakdown.G9.cashInr.toLocaleString('en-IN')}</td>
+                  <td className="p-3 text-indigo-700 font-mono">₹{metrics.gateBreakdown.G9.upiInr.toLocaleString('en-IN')}</td>
+                  <td className="p-3 text-right font-bold text-slate-900 font-mono">₹{metrics.gateBreakdown.G9.totalInr.toLocaleString('en-IN')}</td>
                 </tr>
               </tbody>
             </table>
@@ -297,15 +309,37 @@ export function AdminReportsView({ currentUserRole = 'ADMIN' }: AdminReportsView
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-400">
-                    No expiring or expired passes recorded yet.
-                  </td>
-                </tr>
+                {metrics.expiries.length > 0 ? (
+                  metrics.expiries.map((p) => {
+                    const expiry = new Date(p.expiryDate);
+                    const daysLeft = Math.ceil((expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                    return (
+                      <tr key={p.id}>
+                        <td className="p-3 font-mono font-bold text-indigo-600">{p.passNo}</td>
+                        <td className="p-3 font-medium text-slate-900">{p.name}</td>
+                        <td className="p-3 text-slate-600">{p.phone}</td>
+                        <td className="p-3">Gate {p.gateId}</td>
+                        <td className="p-3 font-medium">{expiry.toLocaleDateString('en-GB')}</td>
+                        <td className="p-3 text-amber-600 font-bold">{daysLeft} days left</td>
+                        <td className="p-3 text-right">
+                          <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-[10px] font-semibold">
+                            EXPIRING
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-slate-400">
+                      No expiring or expired passes recorded yet.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
             <div className="p-3 bg-slate-50 border-t text-[11px] text-slate-500 flex items-center justify-between">
-              <span>Showing 0 records expiring soon</span>
+              <span>Showing {metrics.expiries.length} records expiring soon</span>
               <span className="italic text-slate-400">
                 * Note: Aadhaar numbers are strictly excluded from all expiry reports
               </span>
@@ -330,22 +364,43 @@ export function AdminReportsView({ currentUserRole = 'ADMIN' }: AdminReportsView
             <table className="w-full text-xs text-left">
               <thead className="bg-slate-50 text-slate-500 border-b">
                 <tr>
-                  <th className="p-3">Collector</th>
+                  <th className="p-3">Collector Shift</th>
                   <th className="p-3">Gate</th>
                   <th className="p-3">Cash Slips</th>
                   <th className="p-3">Expected Cash</th>
-                  <th className="p-3">Handed Over</th>
+                  <th className="p-3">Evaluated Revenue</th>
                   <th className="p-3">Discrepancy</th>
                   <th className="p-3">Status</th>
                   <th className="p-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-400">
-                    No end-of-shift cash handovers pending. All counters reset to zero.
-                  </td>
-                </tr>
+                {(['G2', 'GS', 'G9'] as const).map((g) => {
+                  const gateData = metrics.gateBreakdown[g];
+                  return (
+                    <tr key={g}>
+                      <td className="p-3 font-medium text-slate-900">Gate {g} Live Register</td>
+                      <td className="p-3">Gate {g}</td>
+                      <td className="p-3 font-mono">{gateData.passes} slips</td>
+                      <td className="p-3 font-mono font-semibold">₹{gateData.cashInr.toLocaleString('en-IN')}</td>
+                      <td className="p-3 font-mono text-emerald-700 font-bold">₹{gateData.cashInr.toLocaleString('en-IN')}</td>
+                      <td className="p-3 font-mono text-slate-500">₹0</td>
+                      <td className="p-3">
+                        <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full text-[10px] font-semibold flex items-center gap-1 w-fit">
+                          <CheckCircle2 className="w-3 h-3" /> {gateData.passes > 0 ? 'BALANCED' : 'CLEAN SLATE'}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right">
+                        <button
+                          type="button"
+                          className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                        >
+                          Audit Slip
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -366,7 +421,7 @@ export function AdminReportsView({ currentUserRole = 'ADMIN' }: AdminReportsView
 
           <div className="bg-white rounded-xl border overflow-hidden shadow-xs">
             <div className="p-3 bg-slate-50 border-b flex items-center justify-between text-xs">
-              <span className="font-semibold text-slate-700">Physical Slips Issued Today</span>
+              <span className="font-semibold text-slate-700">Physical Slips Issued Today ({metrics.recentSlips.length})</span>
               <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                 0 Sequence Gaps Detected
               </span>
@@ -384,11 +439,37 @@ export function AdminReportsView({ currentUserRole = 'ADMIN' }: AdminReportsView
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-mono">
-                <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-400 font-sans">
-                    No physical receipt slips issued yet. Ready for new admissions.
-                  </td>
-                </tr>
+                {metrics.recentSlips.length > 0 ? (
+                  metrics.recentSlips.map((s) => (
+                    <tr key={s.id}>
+                      <td className="p-3 font-bold text-slate-900">{s.receiptNo}</td>
+                      <td className="p-3 text-indigo-600 font-semibold">{s.passNo}</td>
+                      <td className="p-3 font-sans font-medium text-slate-800">{s.name}</td>
+                      <td className="p-3 font-sans">Gate {s.gateId}</td>
+                      <td className="p-3">₹{(s.amountPaise / 100).toFixed(2)}</td>
+                      <td className="p-3 font-sans">
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            s.paymentMode === 'CASH'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-indigo-100 text-indigo-800'
+                          }`}
+                        >
+                          {s.paymentMode}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right text-slate-400 font-sans text-[11px]">
+                        {new Date(s.issuedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-slate-400 font-sans">
+                      No physical receipt slips issued yet. Ready for new admissions.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

@@ -80,6 +80,8 @@ export function AdminDashboard({ apiClient, currentUserRole = 'ADMIN' }: AdminDa
     try {
       // 1. Clear any local drafts or cached items
       localStorage.removeItem('wpd_collector_draft');
+      localStorage.removeItem('wpd_passes_records');
+      window.dispatchEvent(new Event('wpd_data_updated'));
 
       // 2. Call backend reset endpoint if available
       await fetch('/api/v1/admin/reset-data', { method: 'POST' }).catch(() => {});
