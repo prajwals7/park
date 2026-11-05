@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { ApiClient, DashboardOverviewResponse } from '@wpd/shared';
 import { apiRequest } from '@/lib/api';
+import { evaluateReportsAndReconciliation, getRecordedPasses } from '@/lib/pass-store';
 import { AdminKpiCards } from './admin-kpi-cards';
 import { AdminCharts } from './admin-charts';
 import { AdminExpiriesTable } from './admin-expiries-table';
@@ -46,6 +47,9 @@ export function AdminDashboard({ apiClient, currentUserRole = 'ADMIN' }: AdminDa
 
   useEffect(() => {
     fetchDashboardMetrics();
+    const handleUpdate = () => fetchDashboardMetrics();
+    window.addEventListener('wpd_data_updated', handleUpdate);
+    return () => window.removeEventListener('wpd_data_updated', handleUpdate);
   }, [dateRange]);
 
   const fetchDashboardMetrics = async () => {
@@ -62,9 +66,50 @@ export function AdminDashboard({ apiClient, currentUserRole = 'ADMIN' }: AdminDa
       const data = await apiRequest<DashboardOverviewResponse>(`/admin/dashboard?range=${dateRange}`);
       if (data && data.kpis) {
         setDashboardData(data);
+        return;
       }
+      throw new Error('API offline');
     } catch {
-      // Graceful empty state
+      // Dynamic live evaluation from pass store
+      const evaluated = evaluateReportsAndReconciliation();
+      const passes = getRecordedPasses();
+      const activeCount = passes.filter((p) => p.status === 'ACTIVE').length;
+      const expiringCount = passes.filter((p) => p.status === 'EXPIRING').length;
+      const expiredCount = passes.filter((p) => p.status === 'EXPIRED').length;
+
+      setDashboardData({
+        kpis: {
+          activeWalkers: { count: activeCount, changePct: 0 },
+          expiringSoon: { count: expiringCount, changePct: 0 },
+          expiredPasses: { count: expiredCount, changePct: 0 },
+          todayCollectionPaise: { amount: evaluated.totalCollectedInr * 100, changePct: 0 },
+          monthCollectionPaise: { amount: evaluated.totalCollectedInr * 100, changePct: 0 },
+          newVsRenewalThisMonth: { newCount: activeCount, renewalCount: 0, ratioPct: 100, changePct: 0 },
+        },
+        collectionsTrend: [
+          {
+            date: 'Today',
+            totalPaise: evaluated.totalCollectedInr * 100,
+            cashPaise: evaluated.cashInr * 100,
+            upiPaise: evaluated.upiInr * 100,
+            count: evaluated.totalPassesCount,
+          },
+        ],
+        gateComparison: [
+          { gateCode: 'G2', gateName: 'Main North Gate', totalPaise: evaluated.gateBreakdown.G2.totalInr * 100, paymentsCount: evaluated.gateBreakdown.G2.passes, walkersCount: evaluated.gateBreakdown.G2.passes },
+          { gateCode: 'GS', gateName: 'South Gate Boulevard', totalPaise: evaluated.gateBreakdown.GS.totalInr * 100, paymentsCount: evaluated.gateBreakdown.GS.passes, walkersCount: evaluated.gateBreakdown.GS.passes },
+          { gateCode: 'G9', gateName: 'East Lake View Gate', totalPaise: evaluated.gateBreakdown.G9.totalInr * 100, paymentsCount: evaluated.gateBreakdown.G9.passes, walkersCount: evaluated.gateBreakdown.G9.passes },
+        ],
+        paymentModeSplit: {
+          cashPaise: evaluated.cashInr * 100,
+          cashCount: evaluated.cashCount,
+          cashPct: evaluated.cashPct,
+          upiPaise: evaluated.upiInr * 100,
+          upiCount: evaluated.upiCount,
+          upiPct: evaluated.upiPct,
+        },
+        registrationsOverTime: [],
+      });
     } finally {
       setIsLoading(false);
     }

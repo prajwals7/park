@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { ApiClient, GATES, PassStatus } from '@wpd/shared';
 import { apiRequest } from '@/lib/api';
+import { getRecordedPasses, updateRecordedPass, deleteRecordedPass } from '@/lib/pass-store';
 import { DataTable, ColumnDef } from '../ui/data-table';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -77,10 +78,35 @@ export function AdminWalkerManagement({ apiClient }: AdminWalkerManagementProps)
 
   useEffect(() => {
     fetchWalkers();
+    const handleUpdate = () => fetchWalkers();
+    window.addEventListener('wpd_data_updated', handleUpdate);
+    return () => window.removeEventListener('wpd_data_updated', handleUpdate);
   }, [selectedGate, selectedStatus]);
 
   const fetchWalkers = async () => {
     setIsLoading(true);
+
+    const localPasses = getRecordedPasses();
+    const now = Date.now();
+    const localWalkers: WalkerRow[] = localPasses.map((p) => {
+      const expiry = new Date(p.expiryDate).getTime();
+      const daysLeft = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+      return {
+        id: p.id,
+        passNo: p.passNo,
+        name: p.name,
+        phone: p.phone,
+        gateCode: p.gateId,
+        status: daysLeft <= 0 ? 'EXPIRED' : daysLeft <= 7 ? 'EXPIRING' : 'ACTIVE',
+        expiryDate: new Date(p.expiryDate).toLocaleDateString('en-GB'),
+        daysRemaining: daysLeft > 0 ? daysLeft : 0,
+        maskedAadhaar: 'XXXX XXXX 1234',
+        notes: p.notes,
+        deletedAt: null,
+        createdAt: new Date(p.issuedAt).toLocaleDateString('en-GB'),
+      };
+    });
+
     try {
       if (apiClient) {
         const res = await apiClient.walkers.list({
@@ -113,7 +139,23 @@ export function AdminWalkerManagement({ apiClient }: AdminWalkerManagementProps)
               createdAt: item.createdAt ? new Date(String(item.createdAt)).toLocaleDateString('en-GB') : '',
             };
           });
-          setWalkers(mapped);
+
+          // Merge local and API
+          const seen = new Set<string>();
+          const merged: WalkerRow[] = [];
+          for (const w of localWalkers) {
+            seen.add(w.id);
+            seen.add(w.passNo);
+            merged.push(w);
+          }
+          for (const w of mapped) {
+            if (!seen.has(w.id) && !seen.has(w.passNo)) {
+              seen.add(w.id);
+              seen.add(w.passNo);
+              merged.push(w);
+            }
+          }
+          setWalkers(merged);
           return;
         }
       }
@@ -136,9 +178,24 @@ export function AdminWalkerManagement({ apiClient }: AdminWalkerManagementProps)
         deletedAt: raw.deletedAt ? String(raw.deletedAt) : null,
         createdAt: raw.createdAt ? new Date(String(raw.createdAt)).toLocaleDateString('en-GB') : '',
       }));
-      setWalkers(mapped);
+
+      const seen = new Set<string>();
+      const merged: WalkerRow[] = [];
+      for (const w of localWalkers) {
+        seen.add(w.id);
+        seen.add(w.passNo);
+        merged.push(w);
+      }
+      for (const w of mapped) {
+        if (!seen.has(w.id) && !seen.has(w.passNo)) {
+          seen.add(w.id);
+          seen.add(w.passNo);
+          merged.push(w);
+        }
+      }
+      setWalkers(merged);
     } catch {
-      setWalkers([]);
+      setWalkers(localWalkers);
     } finally {
       setIsLoading(false);
     }
@@ -171,6 +228,12 @@ export function AdminWalkerManagement({ apiClient }: AdminWalkerManagementProps)
         });
       }
 
+      updateRecordedPass(editingWalker.id, {
+        name: editName.trim(),
+        phone: editPhone.trim(),
+        notes: editNotes.trim(),
+      });
+
       setWalkers((prev) =>
         prev.map((w) =>
           w.id === editingWalker.id
@@ -202,6 +265,8 @@ export function AdminWalkerManagement({ apiClient }: AdminWalkerManagementProps)
       if (apiClient) {
         await apiClient.walkers.delete(deletingWalker.id, deleteReason.trim());
       }
+
+      deleteRecordedPass(deletingWalker.id);
 
       setWalkers((prev) =>
         prev.map((w) =>
@@ -254,19 +319,37 @@ export function AdminWalkerManagement({ apiClient }: AdminWalkerManagementProps)
 
   // Handle Bulk Export
   const handleExport = (format: 'csv' | 'excel') => {
-    if (apiClient) {
-      const exportUrl = apiClient.walkers.export({
-        format,
-        gateId: selectedGate !== 'ALL' ? selectedGate : undefined,
-        status: selectedStatus !== 'ALL' ? (selectedStatus as PassStatus) : undefined,
-        search: searchQuery || undefined,
-      });
-      window.open(exportUrl, '_blank');
-    } else {
+    try {
+      const headers = ['Pass No', 'Name', 'Phone', 'Gate', 'Status', 'Expiry Date', 'Days Left'];
+      const rows = filteredWalkers.map((w) => [
+        w.passNo,
+        `"${w.name.replace(/"/g, '""')}"`,
+        w.phone,
+        w.gateCode,
+        w.status,
+        w.expiryDate,
+        w.daysRemaining,
+      ]);
+      const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `walkers-directory-${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
       addToast({
-        title: `Export ${format.toUpperCase()} Generated`,
-        description: `Downloaded ${filteredWalkers.length} walker records with formula injection protection.`,
-        variant: 'default',
+        title: `Export ${format.toUpperCase()} Downloaded`,
+        description: `Downloaded ${filteredWalkers.length} walker records.`,
+        variant: 'success',
+      });
+    } catch {
+      addToast({
+        title: 'Export Failed',
+        description: 'Could not generate CSV file.',
+        variant: 'destructive',
       });
     }
   };

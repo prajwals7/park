@@ -57,14 +57,52 @@ export function AdminReportsView({ currentUserRole = 'ADMIN' }: AdminReportsView
 
   const handleExport = (format: 'csv' | 'excel') => {
     setIsExporting(format);
-    const params = new URLSearchParams({
-      format,
-      ...(selectedGate !== 'ALL' ? { gateId: selectedGate } : {}),
-      startDate: `${selectedDate}T00:00:00.000Z`,
-      endDate: `${selectedDate}T23:59:59.999Z`,
-    });
-    window.open(`/api/v1/reports/export/payments?${params.toString()}`, '_blank');
-    setTimeout(() => setIsExporting(null), 1000);
+    try {
+      const slips = metrics.recentSlips.filter((s) => {
+        if (selectedGate !== 'ALL' && s.gateId !== selectedGate) return false;
+        return true;
+      });
+
+      const headers = [
+        'Pass No',
+        'Walker Name',
+        'Phone',
+        'Gate',
+        'Receipt Slip No',
+        'Amount INR',
+        'Payment Mode',
+        'Issued Date',
+        'Expiry Date',
+        'Status',
+      ];
+
+      const rows = slips.map((s) => [
+        s.passNo,
+        `"${s.name.replace(/"/g, '""')}"`,
+        s.phone,
+        s.gateId,
+        s.receiptNo,
+        (s.amountPaise / 100).toFixed(2),
+        s.paymentMode,
+        new Date(s.issuedAt).toLocaleDateString('en-GB'),
+        new Date(s.expiryDate).toLocaleDateString('en-GB'),
+        s.status,
+      ]);
+
+      const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `reconciliation-register-${selectedGate.toLowerCase()}-${selectedDate}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch {
+      // ignore
+    } finally {
+      setTimeout(() => setIsExporting(null), 800);
+    }
   };
 
   return (

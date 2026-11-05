@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ApiClient, sanitizeForFormulaInjection } from '@wpd/shared';
+import { getRecordedPasses, renewRecordedPass, getNextSuggestedPassAndReceipt } from '@/lib/pass-store';
 import { DataTable, ColumnDef } from '../ui/data-table';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -52,12 +53,44 @@ export function AdminExpiriesTable({ apiClient, onRenewSuccess }: AdminExpiriesT
 
   useEffect(() => {
     fetchExpiries();
+    const handleUpdate = () => fetchExpiries();
+    window.addEventListener('wpd_data_updated', handleUpdate);
+    return () => window.removeEventListener('wpd_data_updated', handleUpdate);
   }, [filterThreshold]);
 
   const fetchExpiries = async () => {
     setIsLoading(true);
+
+    const localPasses = getRecordedPasses();
+    const now = Date.now();
+    const isExpired = filterThreshold === 'EXPIRED';
+    const thresholdDays = isExpired ? 0 : Number(filterThreshold);
+
+    const localExpiries: ExpiryRow[] = localPasses
+      .map((p) => {
+        const expiry = new Date(p.expiryDate).getTime();
+        const daysLeft = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+        const status: 'ACTIVE' | 'EXPIRING' | 'EXPIRED' =
+          daysLeft <= 0 ? 'EXPIRED' : daysLeft <= 7 ? 'EXPIRING' : 'ACTIVE';
+        return {
+          id: p.id,
+          name: p.name,
+          passNo: p.passNo,
+          phone: p.phone,
+          startDate: new Date(p.issuedAt).toLocaleDateString('en-GB'),
+          expiryDate: new Date(p.expiryDate).toLocaleDateString('en-GB'),
+          daysRemaining: daysLeft,
+          status,
+          lastPaymentGate: p.gateId,
+          lastReceiptNo: p.receiptNo,
+        };
+      })
+      .filter((r) => {
+        if (isExpired) return r.daysRemaining <= 0;
+        return r.daysRemaining > 0 && r.daysRemaining <= thresholdDays;
+      });
+
     try {
-      const isExpired = filterThreshold === 'EXPIRED';
       if (apiClient) {
         const res = await apiClient.reports.getExpiries({
           status: isExpired ? 'EXPIRED' : 'EXPIRING',
@@ -67,7 +100,20 @@ export function AdminExpiriesTable({ apiClient, onRenewSuccess }: AdminExpiriesT
         });
 
         if (res && Array.isArray(res.data)) {
-          setData(res.data as unknown as ExpiryRow[]);
+          const apiRows = res.data as unknown as ExpiryRow[];
+          const seen = new Set<string>();
+          const merged: ExpiryRow[] = [];
+          for (const r of localExpiries) {
+            seen.add(r.id);
+            merged.push(r);
+          }
+          for (const r of apiRows) {
+            if (!seen.has(r.id)) {
+              seen.add(r.id);
+              merged.push(r);
+            }
+          }
+          setData(merged);
           return;
         }
       }
@@ -77,12 +123,25 @@ export function AdminExpiriesTable({ apiClient, onRenewSuccess }: AdminExpiriesT
       if (res.ok) {
         const json = await res.json();
         const items = json.data || json.expiries || [];
-        setData(items as ExpiryRow[]);
+        const apiRows = items as ExpiryRow[];
+        const seen = new Set<string>();
+        const merged: ExpiryRow[] = [];
+        for (const r of localExpiries) {
+          seen.add(r.id);
+          merged.push(r);
+        }
+        for (const r of apiRows) {
+          if (!seen.has(r.id)) {
+            seen.add(r.id);
+            merged.push(r);
+          }
+        }
+        setData(merged);
       } else {
-        setData([]);
+        setData(localExpiries);
       }
     } catch {
-      setData([]);
+      setData(localExpiries);
     } finally {
       setIsLoading(false);
     }
@@ -114,19 +173,28 @@ export function AdminExpiriesTable({ apiClient, onRenewSuccess }: AdminExpiriesT
     }
 
     setIsSubmittingRenew(true);
+    const finalReceipt = receiptNo.trim().toUpperCase();
+
     try {
       if (apiClient) {
         await apiClient.walkers.renew(
           renewingWalker.id,
           {
-            gateId: 'G2',
+            gateId: renewingWalker.lastPaymentGate || 'G2',
             paymentMode,
-            receiptNo: receiptNo.trim().toUpperCase(),
+            receiptNo: finalReceipt,
             ticketStorageKey: ticketPhotoUrl || 'uploads/sample-ticket.jpg',
           },
           `renew-${Date.now()}`,
         );
       }
+
+      // Persist to local pass store
+      renewRecordedPass(renewingWalker.id, {
+        receiptNo: finalReceipt,
+        paymentMode,
+        gateId: renewingWalker.lastPaymentGate || 'G2',
+      });
 
       addToast({
         title: 'Pass Renewed Successfully',
@@ -272,7 +340,8 @@ export function AdminExpiriesTable({ apiClient, onRenewSuccess }: AdminExpiriesT
           variant="outline"
           onClick={() => {
             setRenewingWalker(row);
-            setReceiptNo('');
+            const suggestion = getNextSuggestedPassAndReceipt();
+            setReceiptNo(suggestion.receiptNo);
             setPaymentMode('CASH');
           }}
           className="flex items-center gap-1 text-xs"
