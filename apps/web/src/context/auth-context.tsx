@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { getRecruitedCollectors } from '@/lib/pass-store';
 
 export interface AuthUser {
   id: string;
@@ -73,6 +74,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (credentials: { email: string; password: string; gate?: string }) => {
     const selectedGate = credentials.gate || 'G2';
+    const cleanEmail = credentials.email.trim().toLowerCase();
+
+    // Check recruited collectors registry first
+    const recruitedList = getRecruitedCollectors();
+    const matchedCollector = recruitedList.find((c) => c.email.toLowerCase() === cleanEmail);
+    if (matchedCollector) {
+      if (matchedCollector.status === 'DISABLED') {
+        return {
+          success: false,
+          error: 'Your collector account has been deactivated by Park Admin. Please contact your gate supervisor.',
+        };
+      }
+      if (matchedCollector.password && credentials.password && matchedCollector.password !== credentials.password) {
+        return {
+          success: false,
+          error: 'Incorrect password for this collector account.',
+        };
+      }
+      const recruitedUser: AuthUser = {
+        id: matchedCollector.id,
+        name: matchedCollector.name,
+        email: matchedCollector.email,
+        role: 'COLLECTOR',
+        gate: matchedCollector.gate || selectedGate,
+      };
+      saveSession(recruitedUser, 'recruited-collector-token');
+      return { success: true };
+    }
+
     try {
       const res = await fetch('/api/v1/auth/login', {
         method: 'POST',
@@ -83,7 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const contentType = res.headers.get('content-type') || '';
       if (!contentType.includes('application/json')) {
         // Backend API is not connected or in standalone demo mode on Vercel
-        const isCollector = credentials.email.toLowerCase().includes('collector');
+        const isCollector = cleanEmail.includes('collector');
         const demoUser: AuthUser = {
           id: isCollector ? 'collector-1' : 'admin-1',
           name: isCollector ? 'Gate Collector (Demo)' : 'Park Administrator (Demo)',
@@ -103,7 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Check for 2FA / TOTP Challenge
       if (data.requiresTotp || data.requires2FA) {
         const challengeToken = data.challengeToken || data.tempToken;
-        const targetRole: 'ADMIN' | 'COLLECTOR' = credentials.email.toLowerCase().includes('collector') ? 'COLLECTOR' : 'ADMIN';
+        const targetRole: 'ADMIN' | 'COLLECTOR' = cleanEmail.includes('collector') ? 'COLLECTOR' : 'ADMIN';
         setPendingChallenge({
           challengeToken,
           user: {
@@ -119,9 +149,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const loggedUser: AuthUser = {
         id: data.user?.id || 'u-active',
-        name: data.user?.name || (credentials.email.includes('collector') ? 'Anand Murthy' : 'Sunita Rao'),
+        name: data.user?.name || (cleanEmail.includes('collector') ? 'Anand Murthy' : 'Sunita Rao'),
         email: data.user?.email || credentials.email,
-        role: data.user?.role || (credentials.email.includes('collector') ? 'COLLECTOR' : 'ADMIN'),
+        role: data.user?.role || (cleanEmail.includes('collector') ? 'COLLECTOR' : 'ADMIN'),
         gate: selectedGate,
       };
 
@@ -129,7 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: true };
     } catch {
       // In offline/standalone Vercel mode without NestJS backend
-      const isCollector = credentials.email.toLowerCase().includes('collector');
+      const isCollector = cleanEmail.includes('collector');
       const demoUser: AuthUser = {
         id: isCollector ? 'collector-1' : 'admin-1',
         name: isCollector ? 'Gate Collector' : 'Park Administrator',

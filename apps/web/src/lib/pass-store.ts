@@ -160,9 +160,96 @@ export function clearAllRecordedPasses(): void {
   try {
     localStorage.removeItem(PASS_STORE_KEY);
     localStorage.removeItem('wpd_collector_draft');
+    localStorage.removeItem('wpd_recruited_collectors');
     window.dispatchEvent(new Event('wpd_data_updated'));
+    window.dispatchEvent(new Event('wpd_collectors_updated'));
   } catch {
     // ignore
+  }
+}
+
+export interface RecruitedCollector {
+  id: string;
+  name: string;
+  email: string;
+  password?: string;
+  phone: string;
+  gate: string;
+  assignedGate?: string;
+  shift: string;
+  status: 'ACTIVE' | 'DISABLED';
+  createdAt: string;
+}
+
+const COLLECTORS_STORE_KEY = 'wpd_recruited_collectors';
+
+export function getRecruitedCollectors(): RecruitedCollector[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(COLLECTORS_STORE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+export function saveRecruitedCollector(
+  collector: Omit<RecruitedCollector, 'id' | 'createdAt' | 'status'> & {
+    id?: string;
+    gate?: string;
+    assignedGate?: string;
+    status?: 'ACTIVE' | 'DISABLED';
+  }
+): RecruitedCollector {
+  const existing = getRecruitedCollectors();
+  const gateVal = collector.assignedGate || collector.gate || 'G2';
+  const newCollector: RecruitedCollector = {
+    id: collector.id || `collector-${Date.now()}`,
+    name: collector.name.trim(),
+    email: collector.email.trim().toLowerCase(),
+    password: collector.password || 'Collector@123',
+    phone: collector.phone.trim(),
+    gate: gateVal,
+    assignedGate: gateVal,
+    shift: collector.shift || 'General',
+    status: collector.status || 'ACTIVE',
+    createdAt: new Date().toISOString(),
+  };
+  const updated = [newCollector, ...existing.filter((c) => c.email !== newCollector.email)];
+  try {
+    localStorage.setItem(COLLECTORS_STORE_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new Event('wpd_collectors_updated'));
+  } catch {
+    // ignore
+  }
+  return newCollector;
+}
+
+export function toggleRecruitedCollectorStatus(id: string): RecruitedCollector | null {
+  const existing = getRecruitedCollectors();
+  const index = existing.findIndex((c) => c.id === id);
+  if (index === -1) return null;
+  existing[index].status = existing[index].status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE';
+  try {
+    localStorage.setItem(COLLECTORS_STORE_KEY, JSON.stringify(existing));
+    window.dispatchEvent(new Event('wpd_collectors_updated'));
+  } catch {
+    // ignore
+  }
+  return existing[index];
+}
+
+export function deleteRecruitedCollector(id: string): boolean {
+  const existing = getRecruitedCollectors();
+  const filtered = existing.filter((c) => c.id !== id);
+  if (filtered.length === existing.length) return false;
+  try {
+    localStorage.setItem(COLLECTORS_STORE_KEY, JSON.stringify(filtered));
+    window.dispatchEvent(new Event('wpd_collectors_updated'));
+    return true;
+  } catch {
+    return false;
   }
 }
 
