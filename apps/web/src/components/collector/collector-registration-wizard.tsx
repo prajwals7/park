@@ -7,7 +7,7 @@ import { FileUpload } from '../ui/file-upload';
 import { useToast } from '../ui/toast';
 import { VerhoeffUtil, GATES, PASS_CONFIG } from '@wpd/shared';
 import { apiRequest } from '@/lib/api';
-import { saveRecordedPass } from '@/lib/pass-store';
+import { saveRecordedPass, getNextSuggestedPassAndReceipt } from '@/lib/pass-store';
 import {
   CheckCircle2,
   AlertCircle,
@@ -106,6 +106,17 @@ export function CollectorRegistrationWizard({
       setIdempotencyKey(crypto.randomUUID());
     }
   }, [currentGate]);
+
+  // Auto-suggest next sequential pass and slip numbers when entering Step 3
+  useEffect(() => {
+    if (currentStep === 3) {
+      if (!passNo.trim() || !receiptNo.trim()) {
+        const suggestion = getNextSuggestedPassAndReceipt();
+        if (!passNo.trim()) setPassNo(suggestion.passNo);
+        if (!receiptNo.trim()) setReceiptNo(suggestion.receiptNo);
+      }
+    }
+  }, [currentStep, passNo, receiptNo]);
 
   // Auto-save draft on every field change
   useEffect(() => {
@@ -578,6 +589,25 @@ export function CollectorRegistrationWizard({
         {/* ============================================================ */}
         {currentStep === 3 && (
           <div className="space-y-4 animate-in fade-in duration-150">
+            {/* 1-Tap Auto-Fill Sequential Slip Button */}
+            <button
+              type="button"
+              onClick={() => {
+                const s = getNextSuggestedPassAndReceipt();
+                setPassNo(s.passNo);
+                setReceiptNo(s.receiptNo);
+                toast({
+                  type: 'info',
+                  title: 'Sequential Numbers Filled',
+                  message: `Pass: ${s.passNo} • Receipt: ${s.receiptNo}`,
+                });
+              }}
+              className="w-full py-2.5 px-3 bg-amber-50 dark:bg-amber-950/70 hover:bg-amber-100 border border-amber-300 dark:border-amber-700/60 rounded-xl text-xs font-bold text-amber-950 dark:text-amber-200 flex items-center justify-center gap-2 active:scale-98 transition shadow-2xs"
+            >
+              <Sparkles className="w-4 h-4 text-amber-600" />
+              <span>⚡ Auto-fill Next Sequential Numbers</span>
+            </button>
+
             <FormItem
               label="Physical Pass Card No. *"
               required
@@ -588,7 +618,7 @@ export function CollectorRegistrationWizard({
                 value={passNo}
                 onChange={(e) => setPassNo(e.target.value.toUpperCase())}
                 placeholder="e.g. WP-000101"
-                className="h-11 font-mono uppercase font-bold rounded-xl text-sm"
+                className="h-12 font-mono uppercase font-bold rounded-xl text-base sm:text-sm"
               />
             </FormItem>
 
@@ -602,7 +632,7 @@ export function CollectorRegistrationWizard({
                 value={receiptNo}
                 onChange={(e) => setReceiptNo(e.target.value.toUpperCase())}
                 placeholder="e.g. RC-000101"
-                className="h-11 font-mono uppercase font-bold rounded-xl text-sm"
+                className="h-12 font-mono uppercase font-bold rounded-xl text-base sm:text-sm"
               />
             </FormItem>
 
@@ -615,31 +645,31 @@ export function CollectorRegistrationWizard({
                 <button
                   type="button"
                   onClick={() => setPaymentMode('CASH')}
-                  className={`h-14 rounded-xl border font-bold text-sm flex items-center justify-center gap-2 transition ${
+                  className={`h-14 rounded-2xl border font-black text-sm flex items-center justify-center gap-2 transition active:scale-95 ${
                     paymentMode === 'CASH'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-900 dark:text-emerald-200 shadow-sm ring-2 ring-emerald-500/20'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/70 border-emerald-500 text-emerald-950 dark:text-emerald-100 shadow-md ring-2 ring-emerald-500/20'
                       : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
                   }`}
                 >
-                  <Banknote className="w-5 h-5 text-emerald-600" />
+                  <Banknote className="w-5 h-5 text-emerald-600 stroke-[2.5]" />
                   Cash (₹200)
                 </button>
                 <button
                   type="button"
                   onClick={() => setPaymentMode('UPI')}
-                  className={`h-14 rounded-xl border font-bold text-sm flex items-center justify-center gap-2 transition ${
+                  className={`h-14 rounded-2xl border font-black text-sm flex items-center justify-center gap-2 transition active:scale-95 ${
                     paymentMode === 'UPI'
-                      ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-900 dark:text-indigo-200 shadow-sm ring-2 ring-indigo-500/20'
+                      ? 'bg-indigo-50 dark:bg-indigo-950/70 border-indigo-500 text-indigo-950 dark:text-indigo-100 shadow-md ring-2 ring-indigo-500/20'
                       : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
                   }`}
                 >
-                  <CreditCard className="w-5 h-5 text-indigo-600" />
-                  UPI (QR Scan)
+                  <CreditCard className="w-5 h-5 text-indigo-600 stroke-[2.5]" />
+                  UPI QR (₹200)
                 </button>
               </div>
             </div>
 
-            <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border text-xs flex justify-between items-center">
+            <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 text-xs flex justify-between items-center">
               <span className="text-slate-500 font-medium">Monthly Pass Fee:</span>
               <span className="font-extrabold text-slate-900 dark:text-slate-100 text-sm">
                 ₹{PASS_CONFIG.PRICE_PAISE / 100}.00
@@ -653,7 +683,7 @@ export function CollectorRegistrationWizard({
         {/* ============================================================ */}
         {currentStep === 4 && (
           <div className="space-y-4 animate-in fade-in duration-150">
-            <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2 text-xs">
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl space-y-2 text-xs">
               <div className="flex justify-between">
                 <span className="text-slate-500">Walker Name:</span>
                 <span className="font-bold text-slate-900 dark:text-slate-100">{name}</span>
@@ -695,15 +725,15 @@ export function CollectorRegistrationWizard({
           </div>
         )}
 
-        {/* Wizard Navigation Actions (Large Touch Targets for Phones) */}
-        <div className="flex items-center gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+        {/* Wizard Navigation Actions (Sticky Bottom Touch Bar on Phones) */}
+        <div className="sticky bottom-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md -mx-5 -mb-6 p-4 border-t border-slate-100 dark:border-slate-800 flex items-center gap-3 z-10 shadow-lg">
           {currentStep > 1 ? (
             <Button
               type="button"
               variant="outline"
               size="lg"
               onClick={() => setCurrentStep((s) => s - 1)}
-              className="h-12 px-4 rounded-xl flex items-center gap-1"
+              className="h-13 px-4 rounded-xl flex items-center gap-1 active:scale-95"
             >
               <ChevronLeft className="w-4 h-4" /> Back
             </Button>
@@ -714,7 +744,7 @@ export function CollectorRegistrationWizard({
                 variant="outline"
                 size="lg"
                 onClick={onCancel}
-                className="h-12 px-4 rounded-xl"
+                className="h-13 px-4 rounded-xl active:scale-95"
               >
                 Cancel
               </Button>
@@ -730,7 +760,7 @@ export function CollectorRegistrationWizard({
                 (currentStep === 1 && !isStep1Valid) || (currentStep === 3 && !isStep3Valid)
               }
               onClick={() => setCurrentStep((s) => s + 1)}
-              className="flex-1 h-12 rounded-xl text-base font-bold flex items-center justify-center gap-2"
+              className="flex-1 h-13 rounded-xl text-base font-bold flex items-center justify-center gap-2 active:scale-95"
             >
               Next Step <ChevronRight className="w-4 h-4" />
             </Button>
@@ -741,13 +771,14 @@ export function CollectorRegistrationWizard({
               size="lg"
               isLoading={isSubmitting}
               onClick={handleFinalSubmit}
-              className="flex-1 h-12 rounded-xl text-base font-bold bg-emerald-700 hover:bg-emerald-800 text-white"
+              className="flex-1 h-13 rounded-xl text-base font-extrabold bg-emerald-700 hover:bg-emerald-800 text-white shadow-lg active:scale-95"
             >
               Confirm & Issue Pass (₹200)
             </Button>
           )}
         </div>
       </div>
+
     </div>
   );
 }

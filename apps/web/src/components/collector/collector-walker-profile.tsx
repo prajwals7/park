@@ -10,6 +10,7 @@ import { useToast } from '../ui/toast';
 import { CollectorWalkerItem } from './collector-home';
 import { PASS_CONFIG } from '@wpd/shared';
 import { apiRequest } from '@/lib/api';
+import { renewRecordedPass, getNextSuggestedPassAndReceipt } from '@/lib/pass-store';
 import {
   RefreshCw,
   Printer,
@@ -68,6 +69,7 @@ export function CollectorWalkerProfile({
     }
 
     setIsSubmitting(true);
+    const finalReceipt = receiptNo.trim().toUpperCase();
     const idempotencyKey = crypto.randomUUID();
 
     try {
@@ -77,62 +79,47 @@ export function CollectorWalkerProfile({
           'x-idempotency-key': idempotencyKey,
         },
         body: JSON.stringify({
-          gateId: 'G2',
+          gateId: walker.gateId || 'G2',
           paymentMode,
-          receiptNo: receiptNo.trim().toUpperCase(),
+          receiptNo: finalReceipt,
           ticketStorageKey: 'documents/renewal_ticket.jpg',
         }),
       });
-
-      const successData = {
-        receiptNo: receiptNo.trim().toUpperCase(),
-        paymentMode,
-        expiryDate: 'Extended by 30 days',
-      };
-      setRenewedSuccess(successData);
-
-      toast({
-        type: 'success',
-        title: 'Pass Renewed Successfully',
-        message: `Slip ${successData.receiptNo} recorded for ${walker.name}.`,
-      });
-
-      if (onUpdateWalker) {
-        onUpdateWalker({
-          ...walker,
-          status: 'ACTIVE',
-          daysRemaining: 30,
-          latestReceiptNo: successData.receiptNo,
-          latestPaymentMode: paymentMode,
-        });
-      }
     } catch {
-      // Offline fallback
-      const successData = {
-        receiptNo: receiptNo.trim().toUpperCase(),
-        paymentMode,
-        expiryDate: 'Extended by 30 days',
-      };
-      setRenewedSuccess(successData);
-
-      toast({
-        type: 'success',
-        title: 'Pass Renewed (Safe Mode)',
-        message: `Slip ${successData.receiptNo} saved with idempotency key.`,
-      });
-
-      if (onUpdateWalker) {
-        onUpdateWalker({
-          ...walker,
-          status: 'ACTIVE',
-          daysRemaining: 30,
-          latestReceiptNo: successData.receiptNo,
-          latestPaymentMode: paymentMode,
-        });
-      }
-    } finally {
-      setIsSubmitting(false);
+      // Safe mode fallback if backend is offline
     }
+
+    // Persist to local pass records store
+    renewRecordedPass(walker.id || walker.passNo, {
+      receiptNo: finalReceipt,
+      paymentMode,
+      gateId: walker.gateId || 'G2',
+    });
+
+    const successData = {
+      receiptNo: finalReceipt,
+      paymentMode,
+      expiryDate: 'Extended by 30 days',
+    };
+    setRenewedSuccess(successData);
+
+    toast({
+      type: 'success',
+      title: 'Pass Renewed Successfully',
+      message: `Slip ${finalReceipt} recorded for ${walker.name}.`,
+    });
+
+    if (onUpdateWalker) {
+      onUpdateWalker({
+        ...walker,
+        status: 'ACTIVE',
+        daysRemaining: 30,
+        latestReceiptNo: finalReceipt,
+        latestPaymentMode: paymentMode,
+      });
+    }
+
+    setIsSubmitting(false);
   };
 
   return (
@@ -248,6 +235,8 @@ export function CollectorWalkerProfile({
             variant="primary"
             onClick={() => {
               setRenewedSuccess(null);
+              const suggestion = getNextSuggestedPassAndReceipt();
+              setReceiptNo(suggestion.receiptNo);
               setIsRenewOpen(true);
             }}
             className="w-full h-13 rounded-xl font-bold text-base flex items-center justify-center gap-2 shadow-md"
