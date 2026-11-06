@@ -19,7 +19,6 @@ import {
   FileText,
   History,
   ShieldCheck,
-  Eye,
   CheckCircle2,
   Clock,
   AlertTriangle,
@@ -36,6 +35,9 @@ export interface WalkerRow {
   daysRemaining: number;
   aadhaarLast4?: string;
   maskedAadhaar?: string;
+  walkerPhotoUrl?: string;
+  aadhaarPhotoUrl?: string;
+  receiptPhotoUrl?: string;
   notes?: string;
   deletedAt?: string | null;
   createdAt: string;
@@ -100,7 +102,10 @@ export function AdminWalkerManagement({ apiClient }: AdminWalkerManagementProps)
         status: daysLeft <= 0 ? 'EXPIRED' : daysLeft <= 7 ? 'EXPIRING' : 'ACTIVE',
         expiryDate: new Date(p.expiryDate).toLocaleDateString('en-GB'),
         daysRemaining: daysLeft > 0 ? daysLeft : 0,
-        maskedAadhaar: 'XXXX XXXX 1234',
+        maskedAadhaar: p.maskedAadhaar || 'XXXX XXXX 1234',
+        walkerPhotoUrl: p.walkerPhotoUrl,
+        aadhaarPhotoUrl: p.aadhaarPhotoUrl,
+        receiptPhotoUrl: p.receiptPhotoUrl,
         notes: p.notes,
         deletedAt: null,
         createdAt: new Date(p.issuedAt).toLocaleDateString('en-GB'),
@@ -360,16 +365,29 @@ export function AdminWalkerManagement({ apiClient }: AdminWalkerManagementProps)
       accessorKey: 'name',
       sortable: true,
       cell: (row) => (
-        <div>
-          <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-            {row.name}
-            {row.deletedAt && (
-              <Badge variant="destructive" className="text-[10px] py-0 px-1">
-                Deactivated
-              </Badge>
-            )}
+        <div className="flex items-center gap-2.5">
+          {row.walkerPhotoUrl ? (
+            <img
+              src={row.walkerPhotoUrl}
+              alt={row.name}
+              className="w-10 h-10 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shrink-0 shadow-2xs"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-xl bg-park-100 dark:bg-park-950 text-park-800 dark:text-park-300 font-bold text-xs flex items-center justify-center shrink-0 border border-park-200 dark:border-park-800">
+              {row.name.slice(0, 2).toUpperCase()}
+            </div>
+          )}
+          <div>
+            <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+              {row.name}
+              {row.deletedAt && (
+                <Badge variant="destructive" className="text-[10px] py-0 px-1">
+                  Deactivated
+                </Badge>
+              )}
+            </div>
+            <div className="text-xs text-slate-500 font-mono">{row.phone}</div>
           </div>
-          <div className="text-xs text-slate-500 font-mono">{row.phone}</div>
         </div>
       ),
     },
@@ -679,32 +697,70 @@ export function AdminWalkerManagement({ apiClient }: AdminWalkerManagementProps)
           description={`Secure document vault for Pass ${viewingDocsWalker.passNo}. Served through short-lived signed URLs.`}
         >
           <div className="space-y-4 mt-2">
-            <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+            {/* 1. Passport Photograph */}
+            <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
               <div>
                 <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
                   Passport Photograph
                 </div>
-                <div className="text-[11px] text-slate-500">MIME: image/jpeg • Stripped EXIF</div>
+                <div className="text-[11px] text-slate-500">Official facial identification record</div>
               </div>
-              <div className="w-12 h-12 rounded bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-500">
-                Photo
-              </div>
+              {viewingDocsWalker.walkerPhotoUrl ? (
+                <img
+                  src={viewingDocsWalker.walkerPhotoUrl}
+                  alt="Walker Passport"
+                  className="w-16 h-16 rounded-xl object-cover border border-emerald-500 shadow-2xs"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] text-slate-500 font-bold">
+                  No Photo
+                </div>
+              )}
             </div>
 
-            <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+            {/* 2. Aadhaar Document Photo */}
+            <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
               <div>
                 <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  Government ID Proof (Aadhaar / Passport)
+                  Government ID Proof (Aadhaar)
                 </div>
                 <div className="text-[11px] text-slate-500">
-                  Encrypted at rest (AES-256-GCM) • Masked: {viewingDocsWalker.maskedAadhaar}
+                  Encrypted proof • Masked: {viewingDocsWalker.maskedAadhaar}
                 </div>
               </div>
-              <Button size="sm" variant="outline" className="text-xs">
-                <Eye className="w-3.5 h-3.5 mr-1" />
-                View Proof
-              </Button>
+              {viewingDocsWalker.aadhaarPhotoUrl ? (
+                <img
+                  src={viewingDocsWalker.aadhaarPhotoUrl}
+                  alt="Aadhaar ID Proof"
+                  className="w-16 h-16 rounded-xl object-cover border border-emerald-500 shadow-2xs"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] text-slate-500 font-bold">
+                  No Doc
+                </div>
+              )}
+            </div>
+
+            {/* 3. Physical Receipt Slip Photo */}
+            <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                  Physical Paper Receipt Slip
+                </div>
+                <div className="text-[11px] text-slate-500">Counter receipt voucher proof</div>
+              </div>
+              {viewingDocsWalker.receiptPhotoUrl ? (
+                <img
+                  src={viewingDocsWalker.receiptPhotoUrl}
+                  alt="Receipt Slip Proof"
+                  className="w-16 h-16 rounded-xl object-cover border border-emerald-500 shadow-2xs"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] text-slate-500 font-bold">
+                  No Slip
+                </div>
+              )}
             </div>
 
             <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end">

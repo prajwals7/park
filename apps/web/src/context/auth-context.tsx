@@ -76,14 +76,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const selectedGate = credentials.gate || 'G2';
     const cleanEmail = credentials.email.trim().toLowerCase();
 
-    // Check recruited collectors registry first
+    // Check recruited collectors registry first (match by email, Collector ID, or phone number)
     const recruitedList = getRecruitedCollectors();
-    const matchedCollector = recruitedList.find((c) => c.email.toLowerCase() === cleanEmail);
+    const cleanInput = credentials.email.trim().toLowerCase();
+    const matchedCollector = recruitedList.find(
+      (c) =>
+        c.email.toLowerCase() === cleanInput ||
+        (c.collectorId && c.collectorId.toLowerCase() === cleanInput) ||
+        (c.phone && c.phone.replace(/\D/g, '') === cleanInput.replace(/\D/g, ''))
+    );
+
     if (matchedCollector) {
-      if (matchedCollector.status === 'DISABLED') {
+      if (matchedCollector.status === 'DISABLED' || matchedCollector.status === 'CANCELLED') {
+        const actionLabel = matchedCollector.status === 'CANCELLED' ? 'cancelled' : 'deactivated';
         return {
           success: false,
-          error: 'Your collector account has been deactivated by Park Admin. Please contact your gate supervisor.',
+          error: `Your collector authorization (${matchedCollector.collectorId || 'ID'}) has been ${actionLabel} by Park Admin. Reason: ${matchedCollector.cancelReason || 'Authorization revoked'}.`,
         };
       }
       if (matchedCollector.password && credentials.password && matchedCollector.password !== credentials.password) {

@@ -11,6 +11,7 @@ import {
   getNextSuggestedPassAndReceipt,
   getGateShiftSummary,
   GateShiftSummary,
+  fileToOptimizedDataUrl,
 } from '@/lib/pass-store';
 import {
   Search,
@@ -27,6 +28,7 @@ import {
   X,
   PhoneCall,
   Loader2,
+  Camera,
 } from 'lucide-react';
 
 export interface CollectorWalkerItem {
@@ -40,6 +42,11 @@ export interface CollectorWalkerItem {
   daysRemaining: number;
   latestReceiptNo: string;
   latestPaymentMode: 'CASH' | 'UPI';
+  rawAadhaar?: string;
+  maskedAadhaar?: string;
+  walkerPhotoUrl?: string;
+  aadhaarPhotoUrl?: string;
+  receiptPhotoUrl?: string;
 }
 
 export interface CollectorHomeProps {
@@ -66,6 +73,7 @@ export function CollectorHome({
   const [fastRenewTarget, setFastRenewTarget] = useState<CollectorWalkerItem | null>(null);
   const [renewSlipNo, setRenewSlipNo] = useState('');
   const [renewPaymentMode, setRenewPaymentMode] = useState<'CASH' | 'UPI'>('CASH');
+  const [fastRenewReceiptPhoto, setFastRenewReceiptPhoto] = useState<string | null>(null);
   const [isRenewing, setIsRenewing] = useState(false);
 
   // Load walkers combining local recorded store and live API
@@ -89,6 +97,11 @@ export function CollectorHome({
         daysRemaining: daysLeft > 0 ? daysLeft : 0,
         latestReceiptNo: p.receiptNo,
         latestPaymentMode: p.paymentMode,
+        rawAadhaar: p.rawAadhaar,
+        maskedAadhaar: p.maskedAadhaar,
+        walkerPhotoUrl: p.walkerPhotoUrl,
+        aadhaarPhotoUrl: p.aadhaarPhotoUrl,
+        receiptPhotoUrl: p.receiptPhotoUrl,
       };
     });
 
@@ -159,6 +172,7 @@ export function CollectorHome({
     const suggestion = getNextSuggestedPassAndReceipt();
     setRenewSlipNo(suggestion.receiptNo);
     setRenewPaymentMode('CASH');
+    setFastRenewReceiptPhoto(null);
     setFastRenewTarget(walker);
   };
 
@@ -180,14 +194,16 @@ export function CollectorHome({
         receiptNo: renewSlipNo.trim().toUpperCase(),
         paymentMode: renewPaymentMode,
         gateId: currentGate,
+        receiptPhotoUrl: fastRenewReceiptPhoto || undefined,
       });
 
       toast({
         type: 'success',
         title: 'Pass Renewed for 30 Days',
-        message: `${fastRenewTarget.name} renewed with slip ${renewSlipNo.trim().toUpperCase()}.`,
+        message: `${fastRenewTarget.name} renewed with slip ${renewSlipNo.trim().toUpperCase()}${fastRenewReceiptPhoto ? ' & receipt photo saved' : ''}.`,
       });
       setFastRenewTarget(null);
+      setFastRenewReceiptPhoto(null);
       fetchLiveWalkers();
     } catch {
       toast({
@@ -376,28 +392,42 @@ export function CollectorHome({
               onClick={() => onSelectWalker(walker)}
               className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs hover:border-park-600 cursor-pointer transition active:scale-[0.99] space-y-2.5"
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="space-y-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-black text-park-800 dark:text-park-300 bg-park-100 dark:bg-park-950/80 px-2 py-0.5 rounded-md">
-                      {walker.passNo}
-                    </span>
-                    <Badge
-                      variant={
-                        walker.status === 'ACTIVE'
-                          ? 'active'
-                          : walker.status === 'EXPIRING'
-                            ? 'expiring'
-                            : 'expired'
-                      }
-                    >
-                      {walker.status}
-                    </Badge>
-                  </div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  {walker.walkerPhotoUrl ? (
+                    <img
+                      src={walker.walkerPhotoUrl}
+                      alt={walker.name}
+                      className="w-12 h-12 rounded-2xl object-cover border border-slate-200 dark:border-slate-700 shrink-0 shadow-xs"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-2xl bg-park-100 dark:bg-park-950/80 text-park-800 dark:text-park-300 font-black text-sm flex items-center justify-center shrink-0 border border-park-200 dark:border-park-800">
+                      {walker.name.slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
 
-                  <h4 className="text-base font-bold text-slate-900 dark:text-slate-100 truncate">
-                    {walker.name}
-                  </h4>
+                  <div className="space-y-0.5 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-black text-park-800 dark:text-park-300 bg-park-100 dark:bg-park-950/80 px-2 py-0.5 rounded-md">
+                        {walker.passNo}
+                      </span>
+                      <Badge
+                        variant={
+                          walker.status === 'ACTIVE'
+                            ? 'active'
+                            : walker.status === 'EXPIRING'
+                              ? 'expiring'
+                              : 'expired'
+                        }
+                      >
+                        {walker.status}
+                      </Badge>
+                    </div>
+
+                    <h4 className="text-base font-bold text-slate-900 dark:text-slate-100 truncate">
+                      {walker.name}
+                    </h4>
+                  </div>
                 </div>
 
                 {/* Direct 1-tap Fast Renew Button for expiring/expired passes */}
@@ -559,6 +589,37 @@ export function CollectorHome({
                   UPI QR ₹200
                 </button>
               </div>
+            </div>
+
+            {/* Receipt Photo Attachment */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                Receipt Paper Slip Photo (Optional)
+              </label>
+              <label className="flex items-center justify-center gap-2 p-3 bg-slate-50 dark:bg-slate-800/80 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl cursor-pointer hover:border-emerald-500 transition">
+                <Camera className="w-4 h-4 text-emerald-600" />
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  {fastRenewReceiptPhoto ? '✓ Receipt Photo Attached' : 'Capture / Attach Receipt Photo'}
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      try {
+                        const dataUrl = await fileToOptimizedDataUrl(file);
+                        setFastRenewReceiptPhoto(dataUrl);
+                        toast({ type: 'success', title: 'Receipt Photo Attached' });
+                      } catch {
+                        toast({ type: 'error', title: 'Could not process photo' });
+                      }
+                    }
+                  }}
+                />
+              </label>
             </div>
 
             {/* Submit Action */}

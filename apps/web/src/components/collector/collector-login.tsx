@@ -7,7 +7,19 @@ import { Input, FormItem } from '../ui/form-controls';
 import { useToast } from '../ui/toast';
 import { useAuth } from '../../context/auth-context';
 import { GATES } from '@wpd/shared';
-import { Lock, TreePine, KeyRound, ArrowRight, ShieldCheck, User, Sparkles, Shield } from 'lucide-react';
+import {
+  Lock,
+  TreePine,
+  KeyRound,
+  ArrowRight,
+  ShieldCheck,
+  User,
+  Sparkles,
+  Shield,
+  Eye,
+  EyeOff,
+  IdCard,
+} from 'lucide-react';
 
 export interface CollectorLoginProps {
   onLoginSuccess?: (user: {
@@ -29,7 +41,7 @@ export function CollectorLogin({
   const router = useRouter();
   const { login, registerCollector, verify2FA, quickDemoLogin } = useAuth();
 
-  // Mode: 'LOGIN' (Log in: email + password only) vs 'SIGNUP' (Sign in/register: collector name + gate + email + password)
+  // Mode: 'LOGIN' vs 'SIGNUP'
   const [authMode, setAuthMode] = useState<'LOGIN' | 'SIGNUP'>('LOGIN');
   const [activeTab, setActiveTab] = useState<'COLLECTOR' | 'ADMIN'>(defaultRole);
 
@@ -37,6 +49,7 @@ export function CollectorLogin({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('collector@walkerpass.gov.in');
   const [password, setPassword] = useState('Admin@12345');
+  const [showPassword, setShowPassword] = useState(false);
   const [phone, setPhone] = useState('');
   const [gate, setGate] = useState(selectedGate);
 
@@ -52,7 +65,7 @@ export function CollectorLogin({
     if (newTab === 'COLLECTOR') {
       setEmail(authMode === 'LOGIN' ? 'collector@walkerpass.gov.in' : '');
     } else {
-      setAuthMode('LOGIN'); // Admins only log in with existing account
+      setAuthMode('LOGIN');
       setEmail('admin@walkerpass.gov.in');
     }
   };
@@ -71,7 +84,6 @@ export function CollectorLogin({
     }
   };
 
-  // Submit Handler: Log In (Email + Password only) or Sign Up (Name + Gate + Email + Password)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -122,7 +134,7 @@ export function CollectorLogin({
         return;
       }
 
-      // LOGIN MODE: Only email and password sent
+      // LOGIN MODE
       const result = await login({ email: email.trim(), password, gate });
       if (result.requires2FA) {
         setRequires2FA(true);
@@ -135,14 +147,14 @@ export function CollectorLogin({
       }
 
       if (!result.success) {
-        setError(result.error || 'Invalid email or password');
+        setError(result.error || 'Invalid credentials');
         return;
       }
 
       toast({
         type: 'success',
-        title: 'Logged In Successfully',
-        message: `Welcome back! (${activeTab === 'COLLECTOR' ? 'Gate Desk' : 'Admin Portal'})`,
+        title: 'Authentication Successful',
+        message: `Welcome back to ${activeTab === 'COLLECTOR' ? 'Gate Desk' : 'Admin Portal'}!`,
       });
 
       const role = activeTab;
@@ -199,21 +211,21 @@ export function CollectorLogin({
     }
   };
 
-  const handleOneTap = async (role: 'COLLECTOR' | 'ADMIN') => {
+  const handleOneTap = async (role: 'COLLECTOR' | 'ADMIN', designatedGate = gate) => {
     setIsLoading(true);
     try {
-      await quickDemoLogin(role, gate);
+      await quickDemoLogin(role, designatedGate);
       toast({
         type: 'success',
-        title: 'Demo Access Granted',
-        message: `Signed in as ${role === 'COLLECTOR' ? 'Collector (Gate ' + gate + ')' : 'Admin'}`,
+        title: 'Demo Session Started',
+        message: `Signed in as ${role === 'COLLECTOR' ? `Collector (Gate ${designatedGate})` : 'Park Administrator'}`,
       });
       if (onLoginSuccess) {
         onLoginSuccess({
           id: role === 'COLLECTOR' ? 'collector-1' : 'admin-1',
           name: role === 'COLLECTOR' ? 'Anand Murthy' : 'Dr. Ramesh Kumar',
           role,
-          gate,
+          gate: designatedGate,
         });
       } else {
         router.push(role === 'COLLECTOR' ? '/collector' : '/admin');
@@ -224,98 +236,111 @@ export function CollectorLogin({
   };
 
   return (
-    <div className="w-full max-w-md mx-auto p-5 sm:p-7 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl space-y-6">
-      {/* Brand Icon & Heading */}
-      <div className="text-center space-y-2">
-        <div className="w-14 h-14 bg-park-900 dark:bg-park-700 text-white rounded-2xl flex items-center justify-center mx-auto shadow-md">
-          <TreePine className="w-8 h-8 text-emerald-300" />
+    <div className="w-full max-w-md mx-auto p-6 sm:p-8 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-3xl shadow-2xl space-y-6 relative overflow-hidden">
+      {/* Top Ambient Glow Pill */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-1 bg-gradient-to-r from-emerald-500 via-amber-400 to-emerald-500 rounded-full" />
+
+      {/* Brand Icon & Seal Header */}
+      <div className="text-center space-y-2.5">
+        <div className="w-16 h-16 bg-gradient-to-br from-emerald-700 via-park-900 to-slate-900 text-white rounded-2xl flex items-center justify-center mx-auto shadow-lg border border-emerald-500/30 relative">
+          <TreePine className="w-9 h-9 text-emerald-300 drop-shadow-sm" />
+          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-amber-400 text-amber-950 rounded-full flex items-center justify-center text-[10px] font-black shadow-xs">
+            ✓
+          </div>
         </div>
-        <h2 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
-          Walker Pass Desk
-        </h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Official Park Pass & Gate Ticketing System
-        </p>
+
+        <div>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 mb-1">
+            <Sparkles className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Govt. of Karnataka • Dept. of Horticulture
+          </div>
+          <h2 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+            Walker Pass Desk
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+            Lalbagh Botanical Garden Automated Ticketing
+          </p>
+        </div>
       </div>
 
-      {/* Role Toggle Tabs */}
-      <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+      {/* Role Toggle Tabs (Collector vs Supervisor / Admin) */}
+      <div className="grid grid-cols-2 p-1.5 bg-slate-100/90 dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-inner">
         <button
           type="button"
           onClick={() => handleTabChange('COLLECTOR')}
-          className={`py-2 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 ${
+          className={`py-2.5 text-xs font-black rounded-xl transition-all duration-200 flex items-center justify-center gap-2 ${
             activeTab === 'COLLECTOR'
-              ? 'bg-white dark:bg-slate-900 text-park-900 dark:text-emerald-400 shadow-xs'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900'
+              ? 'bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-300 shadow-md ring-1 ring-black/5 dark:ring-white/10'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
-          <User className="w-3.5 h-3.5" />
-          Gate Collector
+          <IdCard className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <span>Gate Collector</span>
         </button>
         <button
           type="button"
           onClick={() => handleTabChange('ADMIN')}
-          className={`py-2 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 ${
+          className={`py-2.5 text-xs font-black rounded-xl transition-all duration-200 flex items-center justify-center gap-2 ${
             activeTab === 'ADMIN'
-              ? 'bg-white dark:bg-slate-900 text-amber-700 dark:text-amber-400 shadow-xs'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900'
+              ? 'bg-white dark:bg-slate-900 text-amber-700 dark:text-amber-400 shadow-md ring-1 ring-black/5 dark:ring-white/10'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
-          <Shield className="w-3.5 h-3.5" />
-          Supervisor / Admin
+          <Shield className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+          <span>Supervisor Admin</span>
         </button>
       </div>
 
-      {/* Mode Toggle: Log In vs Sign In / Sign Up (For Collectors) */}
+      {/* Mode Toggle for Collectors: Existing vs First-time */}
       {activeTab === 'COLLECTOR' && (
-        <div className="flex border-b border-slate-200 dark:border-slate-700 text-sm">
+        <div className="flex border-b border-slate-200 dark:border-slate-800 text-xs font-bold">
           <button
             type="button"
             onClick={() => handleModeSwitch('LOGIN')}
-            className={`flex-1 pb-2.5 text-center font-bold text-xs transition border-b-2 ${
+            className={`flex-1 pb-2.5 text-center transition border-b-2 ${
               authMode === 'LOGIN'
                 ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
+                : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
           >
-            Log In (Existing)
+            Authorized Collector Login
           </button>
           <button
             type="button"
             onClick={() => handleModeSwitch('SIGNUP')}
-            className={`flex-1 pb-2.5 text-center font-bold text-xs transition border-b-2 ${
+            className={`flex-1 pb-2.5 text-center transition border-b-2 ${
               authMode === 'SIGNUP'
                 ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
+                : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
           >
-            Sign In / Register (First Time)
+            Register / First Time Desk
           </button>
         </div>
       )}
 
-      {/* One-Tap Instant Access Bar */}
-      <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/40 rounded-xl space-y-2">
-        <div className="flex items-center justify-between text-[11px] font-semibold text-emerald-900 dark:text-emerald-300">
-          <span className="flex items-center gap-1">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            Quick Demo 1-Tap Access:
+      {/* Quick Demo 1-Tap Access Strip */}
+      <div className="p-3 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-slate-900/60 border border-emerald-200/80 dark:border-emerald-800/40 rounded-2xl space-y-2">
+        <div className="flex items-center justify-between text-[11px] font-bold text-emerald-900 dark:text-emerald-200">
+          <span className="flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+            1-Tap Demo Access:
           </span>
+          <span className="text-[10px] text-slate-500">Instant Test</span>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
-            onClick={() => handleOneTap('COLLECTOR')}
-            className="text-xs py-1.5 px-2 font-bold bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/40 transition shadow-2xs"
+            onClick={() => handleOneTap('COLLECTOR', 'G2')}
+            className="text-xs py-2 px-2.5 font-black bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-700 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition shadow-xs flex items-center justify-center gap-1 active:scale-95"
           >
-            ⚡ Collector (Gate {gate})
+            <span>👮 Collector (Gate 2)</span>
           </button>
           <button
             type="button"
             onClick={() => handleOneTap('ADMIN')}
-            className="text-xs py-1.5 px-2 font-bold bg-white dark:bg-slate-900 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/40 transition shadow-2xs"
+            className="text-xs py-2 px-2.5 font-black bg-white dark:bg-slate-900 text-amber-800 dark:text-amber-300 border border-amber-300/80 dark:border-amber-700 rounded-xl hover:bg-amber-50 dark:hover:bg-amber-900/30 transition shadow-xs flex items-center justify-center gap-1 active:scale-95"
           >
-            ⚡ Admin Portal
+            <span>👑 Park Admin</span>
           </button>
         </div>
       </div>
@@ -323,7 +348,7 @@ export function CollectorLogin({
       {error && (
         <div
           role="alert"
-          className="p-3 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-xl text-xs font-semibold"
+          className="p-3 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-xl text-xs font-bold animate-in fade-in"
         >
           {error}
         </div>
@@ -331,7 +356,7 @@ export function CollectorLogin({
 
       {!requires2FA ? (
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* SIGN IN / FIRST TIME: Ask Collector Name & Gate */}
+          {/* SIGNUP: Name & Gate */}
           {activeTab === 'COLLECTOR' && authMode === 'SIGNUP' && (
             <>
               <FormItem label="Collector Full Name" required>
@@ -342,7 +367,7 @@ export function CollectorLogin({
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Ramesh Kumar"
+                    placeholder="e.g. Ramesh Patel"
                     className="pl-9 h-11 text-sm rounded-xl"
                   />
                 </div>
@@ -350,7 +375,7 @@ export function CollectorLogin({
 
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                  Assigned Entry Gate *
+                  Assigned Entry Gate Counter *
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {GATES.map((g) => (
@@ -360,12 +385,12 @@ export function CollectorLogin({
                       onClick={() => setGate(g)}
                       className={`py-2 px-2 rounded-xl border text-sm font-bold transition flex flex-col items-center justify-center gap-0.5 ${
                         gate === g
-                          ? 'bg-park-50 dark:bg-park-950 border-park-700 dark:border-park-400 text-park-900 dark:text-park-200 ring-2 ring-park-700/20'
+                          ? 'bg-park-100 dark:bg-park-950 border-park-700 dark:border-park-400 text-park-900 dark:text-park-200 ring-2 ring-park-700/20 shadow-xs'
                           : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
                       }`}
                     >
                       <span className="text-[10px] opacity-75 font-normal">Gate</span>
-                      <span className="text-sm font-extrabold">{g}</span>
+                      <span className="text-sm font-black">{g}</span>
                     </button>
                   ))}
                 </div>
@@ -373,102 +398,126 @@ export function CollectorLogin({
             </>
           )}
 
-          {/* Email: Always requested */}
-          <FormItem label={activeTab === 'COLLECTOR' ? 'Collector Email' : 'Admin Email'} required>
+          {/* Identifier Input: Supports Collector ID (e.g. COL-G2-01), Email, or Phone */}
+          <FormItem
+            label={
+              activeTab === 'COLLECTOR'
+                ? 'Collector ID, Email, or Phone Number'
+                : 'Admin Official Email'
+            }
+            required
+            hint={
+              activeTab === 'COLLECTOR'
+                ? 'Enter your issued Collector ID (e.g. COL-G2-104), official email, or registered phone'
+                : undefined
+            }
+          >
             <div className="relative">
-              <User className="w-4 h-4 absolute left-3 top-3.5 text-slate-400" />
+              <IdCard className="w-4 h-4 absolute left-3 top-3.5 text-slate-400" />
               <Input
-                type="email"
+                type="text"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder={activeTab === 'COLLECTOR' ? 'collector@walkerpass.gov.in' : 'admin@walkerpass.gov.in'}
-                className="pl-9 h-11 text-sm rounded-xl"
+                placeholder={
+                  activeTab === 'COLLECTOR'
+                    ? 'e.g. COL-G2-1049 or collector@park.gov.in'
+                    : 'admin@walkerpass.gov.in'
+                }
+                className="pl-9 h-11 text-sm rounded-xl font-medium"
               />
             </div>
           </FormItem>
 
-          {/* Password: Always requested */}
+          {/* Password with Eye Toggle */}
           <FormItem label="Password" required>
             <div className="relative">
               <Lock className="w-4 h-4 absolute left-3 top-3.5 text-slate-400" />
               <Input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="pl-9 h-11 text-sm rounded-xl"
+                placeholder="••••••••••••"
+                className="pl-9 pr-10 h-11 text-sm rounded-xl font-mono"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="w-8 h-8 absolute right-2 top-1.5 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
-            {authMode === 'SIGNUP' && (
-              <p className="text-[11px] text-slate-400 mt-1">
-                Min 8 chars, 1 uppercase, 1 lowercase, 1 number & 1 special symbol (e.g. Pass@1234)
-              </p>
-            )}
           </FormItem>
 
+          {/* Sign In Submit Button */}
           <Button
             type="submit"
-            size="lg"
-            variant="primary"
             isLoading={isLoading}
-            className="w-full h-12 text-base font-bold rounded-xl mt-2 flex items-center justify-center gap-2"
+            className={`w-full h-12 rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-lg transition active:scale-95 ${
+              activeTab === 'COLLECTOR'
+                ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                : 'bg-amber-600 hover:bg-amber-500 text-white'
+            }`}
           >
-            {authMode === 'SIGNUP'
-              ? `Register & Enter Gate ${gate}`
-              : activeTab === 'COLLECTOR'
-              ? 'Log In to Gate Desk'
-              : 'Log In to Admin Portal'}{' '}
+            <span>
+              {authMode === 'SIGNUP'
+                ? 'Register Collector Desk'
+                : activeTab === 'COLLECTOR'
+                  ? 'Sign In to Gate Counter'
+                  : 'Access Supervisor Portal'}
+            </span>
             <ArrowRight className="w-4 h-4" />
           </Button>
-
-          <div className="text-[11px] text-center text-slate-400 flex items-center justify-center gap-1 pt-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            Session protected with Argon2id & AES-256 envelope encryption
-          </div>
         </form>
       ) : (
-        <form onSubmit={handle2FAVerify} className="space-y-4">
-          <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-xl text-xs text-amber-800 dark:text-amber-200">
-            <strong>2FA Authentication Required:</strong> Enter the 6-digit TOTP verification code from your authenticator app.
+        /* 2FA Verification View */
+        <form onSubmit={handle2FAVerify} className="space-y-4 animate-in fade-in">
+          <div className="p-3 bg-park-50 dark:bg-park-950/60 border border-park-200 dark:border-park-800 rounded-xl text-xs space-y-1">
+            <div className="font-bold text-park-900 dark:text-park-200 flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-park-700 dark:text-park-400" />
+              <span>Two-Factor Authentication Required</span>
+            </div>
+            <p className="text-slate-500 dark:text-slate-400">
+              Enter the 6-digit verification code from your authenticator application.
+            </p>
           </div>
 
-          <FormItem label="6-Digit Authenticator Code" required>
+          <FormItem label="6-Digit TOTP Code" required>
             <div className="relative">
-              <KeyRound className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+              <KeyRound className="w-4 h-4 absolute left-3 top-3.5 text-slate-400" />
               <Input
                 type="text"
-                autoFocus
+                inputMode="numeric"
                 required
-                maxLength={8}
+                maxLength={6}
                 value={totpCode}
-                onChange={(e) => setTotpCode(e.target.value.trim())}
-                placeholder="000 000"
-                className="pl-9 h-11 text-base tracking-widest font-mono font-bold rounded-xl text-center"
+                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="123456"
+                className="pl-9 h-11 tracking-widest text-center text-lg font-mono font-bold rounded-xl"
               />
             </div>
           </FormItem>
 
           <Button
             type="submit"
-            size="lg"
-            variant="primary"
             isLoading={isLoading}
-            className="w-full h-12 text-base font-bold rounded-xl"
+            className="w-full h-12 rounded-2xl font-bold bg-park-800 hover:bg-park-700 text-white shadow-md active:scale-95"
           >
-            Verify & Unlock
+            Verify & Continue <ArrowRight className="w-4 h-4" />
           </Button>
-
-          <button
-            type="button"
-            onClick={() => setRequires2FA(false)}
-            className="w-full text-xs text-slate-500 hover:text-slate-800 text-center"
-          >
-            Back to credentials
-          </button>
         </form>
       )}
+
+      {/* Security & Verification Footer */}
+      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-center">
+        <div className="inline-flex items-center gap-1.5 text-[11px] text-slate-400 font-medium">
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+          <span>256-Bit Encrypted Gate Terminal • Verhoeff Verified</span>
+        </div>
+      </div>
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { FileUpload } from '../ui/file-upload';
 import { useToast } from '../ui/toast';
 import { VerhoeffUtil, GATES, PASS_CONFIG } from '@wpd/shared';
 import { apiRequest } from '@/lib/api';
-import { saveRecordedPass, getNextSuggestedPassAndReceipt } from '@/lib/pass-store';
+import { saveRecordedPass, getNextSuggestedPassAndReceipt, fileToOptimizedDataUrl } from '@/lib/pass-store';
 import {
   CheckCircle2,
   AlertCircle,
@@ -32,6 +32,9 @@ export interface WalkerRegistrationDraft {
   receiptNo: string;
   paymentMode: 'CASH' | 'UPI';
   idempotencyKey: string;
+  walkerPhotoUrl?: string;
+  aadhaarPhotoUrl?: string;
+  receiptPhotoUrl?: string;
 }
 
 const DRAFT_KEY = 'wpd_collector_draft';
@@ -71,6 +74,11 @@ export function CollectorRegistrationWizard({
   const [paymentMode, setPaymentMode] = useState<'CASH' | 'UPI'>('CASH');
   const [idempotencyKey, setIdempotencyKey] = useState<string>('');
 
+  // Attached Photos (Permanent Data URLs stored in Database & Records)
+  const [walkerPhotoUrl, setWalkerPhotoUrl] = useState<string | null>(null);
+  const [aadhaarPhotoUrl, setAadhaarPhotoUrl] = useState<string | null>(null);
+  const [receiptPhotoUrl, setReceiptPhotoUrl] = useState<string | null>(null);
+
   // UI state
   const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -96,6 +104,9 @@ export function CollectorRegistrationWizard({
         setPassNo(draft.passNo || '');
         setReceiptNo(draft.receiptNo || '');
         setPaymentMode(draft.paymentMode || 'CASH');
+        setWalkerPhotoUrl(draft.walkerPhotoUrl || null);
+        setAadhaarPhotoUrl(draft.aadhaarPhotoUrl || null);
+        setReceiptPhotoUrl(draft.receiptPhotoUrl || null);
         setCurrentStep(draft.step || 1);
         setIdempotencyKey(draft.idempotencyKey || crypto.randomUUID());
         setHasRestoredDraft(true);
@@ -133,6 +144,9 @@ export function CollectorRegistrationWizard({
       receiptNo,
       paymentMode,
       idempotencyKey: idempotencyKey || crypto.randomUUID(),
+      walkerPhotoUrl: walkerPhotoUrl || undefined,
+      aadhaarPhotoUrl: aadhaarPhotoUrl || undefined,
+      receiptPhotoUrl: receiptPhotoUrl || undefined,
     };
 
     try {
@@ -152,6 +166,9 @@ export function CollectorRegistrationWizard({
     paymentMode,
     idempotencyKey,
     completedWalker,
+    walkerPhotoUrl,
+    aadhaarPhotoUrl,
+    receiptPhotoUrl,
   ]);
 
   const clearDraft = () => {
@@ -163,6 +180,9 @@ export function CollectorRegistrationWizard({
     setPassNo('');
     setReceiptNo('');
     setPaymentMode('CASH');
+    setWalkerPhotoUrl(null);
+    setAadhaarPhotoUrl(null);
+    setReceiptPhotoUrl(null);
     setCurrentStep(1);
     setIdempotencyKey(crypto.randomUUID());
     setHasRestoredDraft(false);
@@ -265,13 +285,17 @@ export function CollectorRegistrationWizard({
         receiptNo: newWalker.receiptNo,
         amountPaise: 20000,
         paymentMode,
+        rawAadhaar,
+        walkerPhotoUrl: walkerPhotoUrl || undefined,
+        aadhaarPhotoUrl: aadhaarPhotoUrl || undefined,
+        receiptPhotoUrl: receiptPhotoUrl || undefined,
       });
 
       setCompletedWalker(newWalker);
       toast({
         type: 'success',
         title: 'Pass Issued Successfully',
-        message: `Walker ${newWalker.name} registered at Gate ${gateId}.`,
+        message: `Walker ${newWalker.name} registered at Gate ${gateId} with photo verification.`,
       });
 
       if (onSuccess) {
@@ -303,6 +327,10 @@ export function CollectorRegistrationWizard({
         receiptNo: newWalker.receiptNo,
         amountPaise: 20000,
         paymentMode,
+        rawAadhaar,
+        walkerPhotoUrl: walkerPhotoUrl || undefined,
+        aadhaarPhotoUrl: aadhaarPhotoUrl || undefined,
+        receiptPhotoUrl: receiptPhotoUrl || undefined,
       });
       setCompletedWalker(newWalker);
 
@@ -569,16 +597,36 @@ export function CollectorRegistrationWizard({
             <FileUpload
               label="Aadhaar ID Card Proof Photo"
               required
-              onFileSelect={(f) => {
-                if (f) toast({ type: 'info', title: 'Aadhaar Photo Attached' });
+              onFileSelect={async (f) => {
+                if (f) {
+                  try {
+                    const dataUrl = await fileToOptimizedDataUrl(f);
+                    setAadhaarPhotoUrl(dataUrl);
+                    toast({ type: 'success', title: 'Aadhaar ID Photo Encrypted & Saved' });
+                  } catch {
+                    toast({ type: 'error', title: 'Failed to compress photo' });
+                  }
+                } else {
+                  setAadhaarPhotoUrl(null);
+                }
               }}
             />
 
             <FileUpload
               label="Walker Passport Photo"
               required
-              onFileSelect={(f) => {
-                if (f) toast({ type: 'info', title: 'Passport Photo Attached' });
+              onFileSelect={async (f) => {
+                if (f) {
+                  try {
+                    const dataUrl = await fileToOptimizedDataUrl(f);
+                    setWalkerPhotoUrl(dataUrl);
+                    toast({ type: 'success', title: 'Walker Portrait Photo Saved' });
+                  } catch {
+                    toast({ type: 'error', title: 'Failed to compress photo' });
+                  }
+                } else {
+                  setWalkerPhotoUrl(null);
+                }
               }}
             />
           </div>
@@ -635,6 +683,24 @@ export function CollectorRegistrationWizard({
                 className="h-12 font-mono uppercase font-bold rounded-xl text-base sm:text-sm"
               />
             </FormItem>
+
+            {/* Receipt Photo Upload */}
+            <FileUpload
+              label="Physical Receipt Paper Slip Photo (Recommended)"
+              onFileSelect={async (f) => {
+                if (f) {
+                  try {
+                    const dataUrl = await fileToOptimizedDataUrl(f);
+                    setReceiptPhotoUrl(dataUrl);
+                    toast({ type: 'success', title: 'Receipt Slip Photo Saved to Database' });
+                  } catch {
+                    toast({ type: 'error', title: 'Failed to compress receipt photo' });
+                  }
+                } else {
+                  setReceiptPhotoUrl(null);
+                }
+              }}
+            />
 
             {/* Payment Mode Selection */}
             <div className="space-y-1.5">
@@ -715,6 +781,52 @@ export function CollectorRegistrationWizard({
                 <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">
                   ₹200.00 ({paymentMode})
                 </span>
+              </div>
+
+              {/* Photos Summary Gallery */}
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                <div className="space-y-1 text-center">
+                  <span className="text-[10px] text-slate-500 font-bold block">Walker Photo</span>
+                  {walkerPhotoUrl ? (
+                    <img
+                      src={walkerPhotoUrl}
+                      alt="Walker Portrait"
+                      className="w-full h-16 object-cover rounded-xl border border-emerald-500/50"
+                    />
+                  ) : (
+                    <div className="h-16 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] text-slate-400">
+                      None
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-1 text-center">
+                  <span className="text-[10px] text-slate-500 font-bold block">Aadhaar ID</span>
+                  {aadhaarPhotoUrl ? (
+                    <img
+                      src={aadhaarPhotoUrl}
+                      alt="Aadhaar ID"
+                      className="w-full h-16 object-cover rounded-xl border border-emerald-500/50"
+                    />
+                  ) : (
+                    <div className="h-16 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] text-slate-400">
+                      None
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-1 text-center">
+                  <span className="text-[10px] text-slate-500 font-bold block">Receipt Slip</span>
+                  {receiptPhotoUrl ? (
+                    <img
+                      src={receiptPhotoUrl}
+                      alt="Receipt Slip"
+                      className="w-full h-16 object-cover rounded-xl border border-emerald-500/50"
+                    />
+                  ) : (
+                    <div className="h-16 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] text-slate-400">
+                      None
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
