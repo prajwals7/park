@@ -142,7 +142,7 @@ export function saveRecordedPass(
     : [];
 
   const newPass: RecordedPass = {
-    id: pass.id || `pass-${Date.now()}`,
+    id: pass.id || `pass-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     passNo: pass.passNo.trim().toUpperCase(),
     name: pass.name.trim(),
     phone: pass.phone.trim(),
@@ -348,7 +348,7 @@ export function saveRecruitedCollector(
   const assignedId = collector.collectorId || generateCollectorId(gateVal);
 
   const newCollector: RecruitedCollector = {
-    id: collector.id || `collector-${Date.now()}`,
+    id: collector.id || `collector-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     collectorId: assignedId,
     name: collector.name.trim(),
     email: collector.email.trim().toLowerCase(),
