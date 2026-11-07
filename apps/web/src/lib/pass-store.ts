@@ -39,6 +39,24 @@ export interface RecordedPass {
 
 const PASS_STORE_KEY = 'wpd_passes_records';
 
+function dispatchPassToCloud(pass: RecordedPass) {
+  if (typeof window === 'undefined' || typeof fetch === 'undefined') return;
+  fetch('/api/passes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(pass),
+  }).catch(() => {});
+}
+
+function dispatchCollectorToCloud(collector: RecruitedCollector) {
+  if (typeof window === 'undefined' || typeof fetch === 'undefined') return;
+  fetch('/api/collectors', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(collector),
+  }).catch(() => {});
+}
+
 /**
  * Image compression utility to convert any camera or gallery photo
  * into an optimized JPEG Data URL (typically 20KB - 40KB).
@@ -189,6 +207,7 @@ export function saveRecordedPass(
       // ignore
     }
   }
+  dispatchPassToCloud(newPass);
   return newPass;
 }
 
@@ -241,6 +260,7 @@ export function renewRecordedPass(
   } catch {
     // ignore
   }
+  dispatchPassToCloud(updated);
   return updated;
 }
 
@@ -258,6 +278,7 @@ export function updateRecordedPass(
   try {
     localStorage.setItem(PASS_STORE_KEY, JSON.stringify(existing));
     window.dispatchEvent(new Event('wpd_data_updated'));
+    dispatchPassToCloud(existing[index]);
     return true;
   } catch {
     return false;
@@ -367,6 +388,7 @@ export function saveRecruitedCollector(
   } catch {
     // ignore
   }
+  dispatchCollectorToCloud(newCollector);
   return newCollector;
 }
 
@@ -388,6 +410,7 @@ export function cancelRecruitedCollector(
   } catch {
     // ignore
   }
+  dispatchCollectorToCloud(existing[index]);
   return existing[index];
 }
 
@@ -402,6 +425,7 @@ export function toggleRecruitedCollectorStatus(id: string): RecruitedCollector |
   } catch {
     // ignore
   }
+  dispatchCollectorToCloud(existing[index]);
   return existing[index];
 }
 
@@ -577,3 +601,108 @@ export function evaluateReportsAndReconciliation(): EvaluatedReconciliation {
     recentSlips: passes,
   };
 }
+
+/**
+ * Bidirectional Real-Time Cloud Synchronization with Neon PostgreSQL:
+ * 1. Pulls newest passes and collectors created across any mobile phone or browser.
+ * 2. Merges with local cache and broadcasts update events to UI components.
+ * 3. Pushes any offline passes/collectors stored locally up into the cloud database.
+ */
+let isSyncing = false;
+export async function syncWithCloud(): Promise<void> {
+  if (typeof window === 'undefined' || typeof fetch === 'undefined') return;
+  if (isSyncing) return;
+  isSyncing = true;
+
+  try {
+    const res = await fetch('/api/sync', { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.success) return;
+
+    // 1. Process Passes
+    const cloudPasses: RecordedPass[] = data.passes || [];
+    const localPasses = getRecordedPasses();
+
+    const passMap = new Map<string, RecordedPass>();
+    for (const cp of cloudPasses) {
+      passMap.set(cp.passNo.toUpperCase(), cp);
+    }
+    const missingInCloud: RecordedPass[] = [];
+    for (const lp of localPasses) {
+      if (!passMap.has(lp.passNo.toUpperCase())) {
+        passMap.set(lp.passNo.toUpperCase(), lp);
+        missingInCloud.push(lp);
+      }
+    }
+
+    const mergedPasses = Array.from(passMap.values());
+    localStorage.setItem(PASS_STORE_KEY, JSON.stringify(mergedPasses));
+    window.dispatchEvent(new Event('wpd_data_updated'));
+
+    if (missingInCloud.length > 0) {
+      fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passes: missingInCloud }),
+      }).catch(() => {});
+    }
+
+    // 2. Process Collectors
+    const cloudCollectors: RecruitedCollector[] = data.collectors || [];
+    const localCollectors = getRecruitedCollectors();
+
+    const colMap = new Map<string, RecruitedCollector>();
+    for (const cc of cloudCollectors) {
+      colMap.set(cc.id, cc);
+    }
+    const missingCollectors: RecruitedCollector[] = [];
+    for (const lc of localCollectors) {
+      if (!colMap.has(lc.id)) {
+        colMap.set(lc.id, lc);
+        missingCollectors.push(lc);
+      }
+    }
+
+    const mergedCollectors = Array.from(colMap.values());
+    localStorage.setItem(COLLECTORS_STORE_KEY, JSON.stringify(mergedCollectors));
+    window.dispatchEvent(new Event('wpd_collectors_updated'));
+
+    if (missingCollectors.length > 0) {
+      fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collectors: missingCollectors }),
+      }).catch(() => {});
+    }
+  } catch {
+    // Offline or network error: continue safely
+  } finally {
+    isSyncing = false;
+  }
+}
+
+let syncInitialized = false;
+export function initRealtimeCloudSync() {
+  if (typeof window === 'undefined' || syncInitialized) return;
+  syncInitialized = true;
+
+  // Immediate pull
+  syncWithCloud();
+
+  // Periodic real-time poll every 5 seconds
+  setInterval(() => {
+    syncWithCloud();
+  }, 5000);
+
+  // Sync on tab re-focus
+  window.addEventListener('focus', () => {
+    syncWithCloud();
+  });
+}
+
+// Auto-activate in browser
+if (typeof window !== 'undefined') {
+  initRealtimeCloudSync();
+}
+
