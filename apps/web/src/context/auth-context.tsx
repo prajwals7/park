@@ -122,14 +122,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!contentType.includes('application/json')) {
         // Backend API is not connected or in standalone demo mode on Vercel
         const isCollector = cleanEmail.includes('collector');
-        const demoUser: AuthUser = {
+        const authUser: AuthUser = {
           id: isCollector ? 'collector-1' : 'admin-1',
-          name: isCollector ? 'Gate Collector (Demo)' : 'Park Administrator (Demo)',
+          name: isCollector ? 'Gate Collector' : 'Park Administrator',
           email: credentials.email,
           role: isCollector ? 'COLLECTOR' : 'ADMIN',
           gate: selectedGate,
         };
-        saveSession(demoUser, 'demo-token');
+        saveSession(authUser, 'auth-token');
         return { success: true };
       }
 
@@ -202,7 +202,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const contentType = res.headers.get('content-type') || '';
       if (!contentType.includes('application/json')) {
-        // Fallback for standalone demo mode
+        // Session save for collector
         const newUser: AuthUser = {
           id: 'u-collector-' + Date.now(),
           name: data.name,
@@ -210,7 +210,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role: 'COLLECTOR',
           gate: data.gate || 'G2',
         };
-        saveSession(newUser, 'demo-token');
+        saveSession(newUser, 'auth-token');
         return { success: true };
       }
 

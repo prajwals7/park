@@ -14,7 +14,6 @@ import {
   ArrowRight,
   ShieldCheck,
   User,
-  Sparkles,
   Shield,
   Eye,
   EyeOff,
@@ -39,7 +38,7 @@ export function CollectorLogin({
 }: CollectorLoginProps) {
   const { toast } = useToast();
   const router = useRouter();
-  const { login, registerCollector, verify2FA, quickDemoLogin } = useAuth();
+  const { login, registerCollector, verify2FA } = useAuth();
 
   // Mode: 'LOGIN' vs 'SIGNUP'
   const [authMode, setAuthMode] = useState<'LOGIN' | 'SIGNUP'>('LOGIN');
@@ -47,8 +46,8 @@ export function CollectorLogin({
 
   // Form Fields
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('collector@walkerpass.gov.in');
-  const [password, setPassword] = useState('Admin@12345');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [phone, setPhone] = useState('');
   const [gate, setGate] = useState(selectedGate);
@@ -62,26 +61,17 @@ export function CollectorLogin({
   const handleTabChange = (newTab: 'COLLECTOR' | 'ADMIN') => {
     setActiveTab(newTab);
     setError(null);
-    if (newTab === 'COLLECTOR') {
-      setEmail(authMode === 'LOGIN' ? 'collector@walkerpass.gov.in' : '');
-    } else {
-      setAuthMode('LOGIN');
-      setEmail('admin@walkerpass.gov.in');
-    }
+    setEmail('');
+    setPassword('');
   };
 
   const handleModeSwitch = (mode: 'LOGIN' | 'SIGNUP') => {
     setAuthMode(mode);
     setError(null);
-    if (mode === 'SIGNUP') {
-      setName('');
-      setEmail('');
-      setPassword('');
-      setPhone('');
-    } else {
-      setEmail(activeTab === 'COLLECTOR' ? 'collector@walkerpass.gov.in' : 'admin@walkerpass.gov.in');
-      setPassword('Admin@12345');
-    }
+    setName('');
+    setEmail('');
+    setPassword('');
+    setPhone('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -211,30 +201,6 @@ export function CollectorLogin({
     }
   };
 
-  const handleOneTap = async (role: 'COLLECTOR' | 'ADMIN', designatedGate = gate) => {
-    setIsLoading(true);
-    try {
-      await quickDemoLogin(role, designatedGate);
-      toast({
-        type: 'success',
-        title: 'Demo Session Started',
-        message: `Signed in as ${role === 'COLLECTOR' ? `Collector (Gate ${designatedGate})` : 'Park Administrator'}`,
-      });
-      if (onLoginSuccess) {
-        onLoginSuccess({
-          id: role === 'COLLECTOR' ? 'collector-1' : 'admin-1',
-          name: role === 'COLLECTOR' ? 'Anand Murthy' : 'Dr. Ramesh Kumar',
-          role,
-          gate: designatedGate,
-        });
-      } else {
-        router.push(role === 'COLLECTOR' ? '/collector' : '/admin');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div className="w-full max-w-md mx-auto p-6 sm:p-8 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-3xl shadow-2xl space-y-6 relative overflow-hidden">
       {/* Top Ambient Glow Pill */}
@@ -251,7 +217,7 @@ export function CollectorLogin({
 
         <div>
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 mb-1">
-            <Sparkles className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Govt. of Karnataka • Dept. of Horticulture
+            <ShieldCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Govt. of Karnataka • Dept. of Horticulture
           </div>
           <h2 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
             Walker Pass Desk
@@ -317,33 +283,6 @@ export function CollectorLogin({
           </button>
         </div>
       )}
-
-      {/* Quick Demo 1-Tap Access Strip */}
-      <div className="p-3 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-slate-900/60 border border-emerald-200/80 dark:border-emerald-800/40 rounded-2xl space-y-2">
-        <div className="flex items-center justify-between text-[11px] font-bold text-emerald-900 dark:text-emerald-200">
-          <span className="flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-            1-Tap Demo Access:
-          </span>
-          <span className="text-[10px] text-slate-500">Instant Test</span>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => handleOneTap('COLLECTOR', 'G2')}
-            className="text-xs py-2 px-2.5 font-black bg-white dark:bg-slate-900 text-emerald-800 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-700 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition shadow-xs flex items-center justify-center gap-1 active:scale-95"
-          >
-            <span>👮 Collector (Gate 2)</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleOneTap('ADMIN')}
-            className="text-xs py-2 px-2.5 font-black bg-white dark:bg-slate-900 text-amber-800 dark:text-amber-300 border border-amber-300/80 dark:border-amber-700 rounded-xl hover:bg-amber-50 dark:hover:bg-amber-900/30 transition shadow-xs flex items-center justify-center gap-1 active:scale-95"
-          >
-            <span>👑 Park Admin</span>
-          </button>
-        </div>
-      </div>
 
       {error && (
         <div
